@@ -1,0 +1,7 @@
+
+*.txt
+*/*.txt
+*/*.dat
+workloads/*
+
+sortedness_workload_generator
