@@ -20,3 +20,5 @@ For example, a sample ingestion workload to create 1M entries with K=L=100,000 (
 ./sortedness_workload_generator 1000000 1000000 100000 100000 1 bin workloads
 ```
 Here, we used "1" as a seed value, 1M as the domain and "bin" to create a binary file. We place this created workload in the "workloads/" directory. 
+
+Note: You will need to create the directory to place the workload if it does not pre-exist. The workload generator will not create this directory automatically. 
