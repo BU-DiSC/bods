@@ -7,6 +7,8 @@ This workload generator uses the K,L metric to denote near-sorted collections, w
 
 The workload generator can create both binary and txt files. It is recommended to only use the txt extension to visualize workloads (as it is easier to read in python or other visualization tools). 
 
+As of now, this workload generator only supports creating ingestion workloads of integers. The maximum number of entries it can correctly generate is 2 Billion.
+
 ## How to run
 
 1. Use the "make" command to compile the workload generator cpp file 
