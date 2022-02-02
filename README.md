@@ -1,6 +1,6 @@
 # sortedness-workload
 
-Workload generator for SIGMOD 2022 submission: "OSM-Tree: A Sortedness-Aware Index"
+Workload generator for VLDB 2022 submission: "OSM-Tree: A Sortedness-Aware Index"
 
 ## About the workload generator
 This workload generator uses the K,L metric to denote near-sorted collections, where K is the number of unordered entries and L is the maximum displacement of an out-of-order entry from its actual/ideal position. 
