@@ -226,6 +226,7 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
     unsigned long noise_counter = 0;
 
     std::unordered_set<unsigned long> myset;
+    std::unordered_set<unsigned long> swaps;
     unsigned long w = 0;
     unsigned long windowSize = 1;
     std::cout << "pOut = " << p_outOfRange << std::endl;
@@ -234,21 +235,49 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
     {
         array[i] = w;
     }
-    while (noise_counter < noise_limit)
+
+    // generate noise_limit number of unique random numbers
+    int ctr = 0;
+    // std::vector<unsigned int> ks;
+    while (ctr < noise_limit)
     {
-        unsigned long i;
+        unsigned seed = std::chrono::steady_clock::now().time_since_epoch().count();
+        std::default_random_engine e(seed);
+
+        std::uniform_int_distribution<unsigned long> distr(1, TOTAL_NUMBERS);
+        unsigned long i = distr(e);
+
+        if (myset.find(i) != myset.end())
+        {
+            continue;
+        }
+        else
+        {
+            myset.insert(i);
+            if (i < 0)
+            {
+                std::cout << "neg" << std::endl;
+            }
+            // ks.push_back(i);
+            ctr++;
+        }
+    }
+
+    std::cout << "ctr = " << ctr << std::endl;
+
+    // now, loop through these values
+    for (auto itr = myset.begin(); itr != myset.end(); itr++)
+    {
+        unsigned long r;
+        unsigned long i = *itr;
+        std::cout << i << " ";
         while (true)
         {
-            // pick a random position between 1 and Total_Numbers
-            // i = rand() % (TOTAL_NUMBERS) + 1;
-            unsigned seed = std::chrono::steady_clock::now().time_since_epoch().count();
-            std::default_random_engine e(seed);
-
-            std::uniform_int_distribution<int> distr(1, TOTAL_NUMBERS);
-            i = distr(e);
-
-            // make sure this index was not picked earlier
-            if (myset.find(i) != myset.end())
+            r = generate_random_in_range(i, TOTAL_NUMBERS, L);
+            
+            // check for cascading swaps, i.e. we should not pick a spot again to swap 
+            // also we should not pick one of our already defined source places 
+            if (swaps.find(r) != swaps.end() && myset.find(r) != myset.end())
             {
                 continue;
             }
@@ -257,31 +286,8 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
                 break;
             }
         }
-        std::cout<<"picked index;"<<std::endl;
-
-        unsigned long r;
-        while (true)
-        {
-            r = generate_random_in_range(i, TOTAL_NUMBERS, L);
-
-            // essentially we want to minimize cascading swaps
-            // however, this is possible only if K <= 50%
-            if (K <= 50)
-            {
-                if (myset.find(r) != myset.end())
-                {
-                    continue;
-                }
-                else
-                {
-                    break;
-                }
-            }
-            else
-                break;
-        }
-        std::cout<<"found swap"<<std::endl;
-        myset.insert(r);
+        std::cout << "found swap" << std::endl;
+        swaps.insert(r);
 
         unsigned long temp = array[i];
         array[i] = array[r];
@@ -292,8 +298,8 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
             break;
 
         std::cout << noise_counter << std::endl;
-        // showProgress(TOTAL_NUMBERS, i);
     }
+
     std::cout << "Noise counter = " << noise_counter << std::endl;
     std::cout << "Noise limit = " << noise_limit << std::endl;
 
