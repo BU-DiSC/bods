@@ -5,3 +5,6 @@
 workloads/*
 
 sortedness_workload_generator
+
+*.dat
+*.o
