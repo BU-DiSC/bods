@@ -133,13 +133,15 @@ std::string generate_partitions_stream(key_type TOTAL_NUMBERS, key_type domain, 
     for (key_type i = 0; i < TOTAL_NUMBERS; i++)
     {
         // check if current index is in the map
-        if (myset.find(i) != myset.end())
-        {
-            continue;
-        }
+        // if (myset.find(i) != myset.end())
+        // {
+        //     continue;
+        // }
         float ran = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
         unsigned long remaining = noise_limit - noise_counter;
         unsigned long left_out_domain = TOTAL_NUMBERS - i;
+
+        // check flag for randomness or remaining entries
         bool f = (ran < p) || (remaining >= left_out_domain);
         // randomize generation
         if (f && noise_counter < noise_limit)
@@ -243,6 +245,9 @@ int main(int argc, char *argv[])
         key_type domain = args::get(domain_cmd);
         key_type K = args::get(k_cmd);
 
+        // fix K for new definition
+        K = K / 2;
+
         // since we are using rand() function, we only have to take l as an int
         int L = args::get(l_cmd);
         int seedValue = args::get(seed_cmd);
@@ -252,8 +257,8 @@ int main(int argc, char *argv[])
         // for simplicity lets use window size = 1
         key_type windowSize = 1;
 
-        std::cout << "Total = " << totalNumbers << std::endl;
-        std::cout << "domain = " << domain << std::endl;
+        // std::cout << "Total = " << totalNumbers << std::endl;
+        // std::cout << "domain = " << domain << std::endl;
 
         generate_one_file(totalNumbers, domain, windowSize, K, L, seedValue, type, pathToDirectory);
     }

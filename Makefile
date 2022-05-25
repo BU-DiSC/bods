@@ -7,6 +7,9 @@ all: workload_generator
 workload_generator: 
 	$(CC) $(CFLAGS) $(TARGET).cpp -o $(TARGET)
 
+sample: 
+	$(CC) $(CFLAGS) sample.cpp -o sample
 
 clean:
 	rm -rf $(TARGET)
+	rm -rf sample
