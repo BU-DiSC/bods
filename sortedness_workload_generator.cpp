@@ -7,10 +7,12 @@
 #include <random>
 #include <iomanip>
 #include <cassert>
+#include <string>
+#include <string>
 
+#include "args.hxx"
 
 typedef unsigned int key_type;
-
 
 inline bool ledger_exists();
 void generate_one_file(key_type pTOTAL_NUMBERS, key_type pdomain, key_type windowSize, key_type k, int l, int pseed, std::string type, std::string pathToDirectory);
@@ -29,14 +31,12 @@ void generate_one_file(key_type pTOTAL_NUMBERS, key_type pdomain, key_type windo
     srand(time(NULL));
     outfile.open("dataledger.txt", std::ios_base::app);
 
-    std::string folder_name = pathToDirectory+"/";
+    std::string folder_name = pathToDirectory + "/";
 
     outfile << generate_partitions_stream(pTOTAL_NUMBERS, pdomain, windowSize, k, l, pseed, folder_name, type) << std::endl;
 
     outfile.close();
 }
-
-
 
 key_type generate_random_in_range(key_type position, key_type Total_Numbers, int L)
 {
@@ -63,7 +63,7 @@ key_type generate_random_in_range(key_type position, key_type Total_Numbers, int
     }
     else
     {
-    
+
         // we can jump forward or backward
         // let's toss a coin to find out what to do
         float p = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
@@ -83,10 +83,10 @@ key_type generate_random_in_range(key_type position, key_type Total_Numbers, int
 
 std::string generate_partitions_stream(key_type TOTAL_NUMBERS, key_type domain, key_type windowSize, key_type K, int L, int seed, std::string folder = "./Data", std::string type = "bin")
 {
-    float p_outOfRange = (double)K / TOTAL_NUMBERS;
+    // float p_outOfRange = (double)K / TOTAL_NUMBERS;
+    float p_outOfRange = K;
 
     std::srand(seed);
-
 
     key_type *array = new key_type[TOTAL_NUMBERS];
 
@@ -103,7 +103,7 @@ std::string generate_partitions_stream(key_type TOTAL_NUMBERS, key_type domain, 
     f1name += std::to_string(std::time(nullptr));
 
     std::ofstream myfile1;
-    
+
     if (type.compare("txt") == 0)
     {
         f1name += ".txt";
@@ -116,10 +116,9 @@ std::string generate_partitions_stream(key_type TOTAL_NUMBERS, key_type domain, 
         myfile1.open(f1name, std::ios::binary);
     }
 
-    
-
-    key_type noise_limit = TOTAL_NUMBERS * p_outOfRange;
-    assert(noise_limit == K);
+    key_type noise_limit = TOTAL_NUMBERS * p_outOfRange / 100.0;
+    int jumpLimit = TOTAL_NUMBERS * L / 100.0;
+    // assert(noise_limit == K);
     key_type noise_counter = 0;
 
     std::unordered_set<key_type> myset;
@@ -129,18 +128,29 @@ std::string generate_partitions_stream(key_type TOTAL_NUMBERS, key_type domain, 
         array[i] = w;
     }
 
+    double p = p_outOfRange / 100.0;
     // loop through the domain and randomly start picking positions
     for (key_type i = 0; i < TOTAL_NUMBERS; i++)
     {
+        // check if current index is in the map
+        // if (myset.find(i) != myset.end())
+        // {
+        //     continue;
+        // }
         float ran = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
-        //randomize generation
-        if (ran < p_outOfRange && noise_counter < noise_limit)
+        unsigned long remaining = noise_limit - noise_counter;
+        unsigned long left_out_domain = TOTAL_NUMBERS - i;
+
+        // check flag for randomness or remaining entries
+        bool f = (ran < p) || (remaining >= left_out_domain);
+        // randomize generation
+        if (f && noise_counter < noise_limit)
         {
-            //generate position of shuffle
+            // generate position of shuffle
             key_type r;
             while (true)
             {
-                r = generate_random_in_range(i, TOTAL_NUMBERS, L);
+                r = generate_random_in_range(i, TOTAL_NUMBERS, jumpLimit);
                 if (myset.find(r) != myset.end())
                 {
                     continue;
@@ -161,6 +171,8 @@ std::string generate_partitions_stream(key_type TOTAL_NUMBERS, key_type domain, 
                 break;
         }
     }
+    std::cout << "Noise counter = " << noise_counter << std::endl;
+    std::cout << "Noise limit = " << noise_limit << std::endl;
 
     if (type.compare("txt") == 0)
     {
@@ -182,26 +194,90 @@ std::string generate_partitions_stream(key_type TOTAL_NUMBERS, key_type domain, 
     return f1name;
 }
 
-int main(int argc, char **argv)
+int main(int argc, char *argv[])
 {
-    if (argc < 7)
+    // if (argc < 7)
+    // {
+    //     std::cout << "Program requires 7 inputs as parameters. \n Use format: ./workload_generator <totalNumbers> <domain> <kNumber> <lNumber> <seedValue> <typeOfFile> <pathToDirectory>" << std::endl;
+    //     return 0;
+    // }
+
+    // key_type totalNumbers = atoi(argv[1]);
+    // key_type domain = atoi(argv[2]);
+    // key_type K = atoi(argv[3]);
+
+    // // since we are using rand() function, we only have to take l as an int
+    // int L = atoi(argv[4]);
+    // int seedValue = atoi(argv[5]);
+    // std::string type = argv[6];
+    // std::string pathToDirectory = argv[7];
+
+    // // for simplicity lets use window size = 1
+    // key_type windowSize = 1;
+
+    // generate_one_file(totalNumbers, domain, windowSize, K, L, seedValue, type, pathToDirectory);
+
+    args::ArgumentParser parser("Sortedness Parser.", "");
+
+    args::Group group1(parser, "These arguments are REQUIRED",
+                       args::Group::Validators::DontCare);
+    args::Group group4(parser, "Optional switches and parameters:",
+                       args::Group::Validators::DontCare);
+
+    args::ValueFlag<unsigned long> total_numbers_cmd(group1, "N", "Total number of entries to generate", {'N', "total_entries"});
+    args::ValueFlag<unsigned long> domain_cmd(group1, "D", "Domain of entries", {'D', "domain"});
+    args::ValueFlag<int> k_cmd(group1, "K", "% of out of order entries", {'K', "k_pt"});
+    args::ValueFlag<int> l_cmd(group1, "L", "Maximum displacement of entries as %", {'L', "l_pt"});
+    args::ValueFlag<int> seed_cmd(group1, "S", "Seed Value", {'S', "seed_val"});
+    args::Flag text_file_cmd(group1, "txt", "output as txt file", {"txt", "txt_file"});
+    args::ValueFlag<std::string> path_cmd(group1, "dir_path", "Path to output directory", {'p', "path"});
+
+    if (argc == 1)
     {
-        std::cout << "Program requires 7 inputs as parameters. \n Use format: ./workload_generator <totalNumbers> <domain> <kNumber> <lNumber> <seedValue> <typeOfFile> <pathToDirectory>" << std::endl;
-        return 0;
+        std::cout << parser;
+        exit(0);
     }
 
-    key_type totalNumbers = atoi(argv[1]);
-    key_type domain = atoi(argv[2]);
-    key_type K = atoi(argv[3]);
- 
-    // since we are using rand() function, we only have to take l as an int
-    int L = atoi(argv[4]);
-    int seedValue = atoi(argv[5]);
-    std::string type = argv[6];
-    std::string pathToDirectory = argv[7];
+    try
+    {
+        parser.ParseCLI(argc, argv);
+        key_type totalNumbers = args::get(total_numbers_cmd);
+        key_type domain = args::get(domain_cmd);
+        key_type K = args::get(k_cmd);
 
-    // for simplicity lets use window size = 1
-    key_type windowSize = 1; 
+        // fix K for new definition
+        K = K / 2;
 
-    generate_one_file(totalNumbers, domain, windowSize, K, L, seedValue, type, pathToDirectory);
+        // since we are using rand() function, we only have to take l as an int
+        int L = args::get(l_cmd);
+        int seedValue = args::get(seed_cmd);
+        std::string type = text_file_cmd ? "txt" : "bin";
+        std::string pathToDirectory = args::get(path_cmd);
+
+        // for simplicity lets use window size = 1
+        key_type windowSize = 1;
+
+        // std::cout << "Total = " << totalNumbers << std::endl;
+        // std::cout << "domain = " << domain << std::endl;
+
+        generate_one_file(totalNumbers, domain, windowSize, K, L, seedValue, type, pathToDirectory);
+    }
+    catch (args::Help &)
+    {
+        std::cout << parser;
+        exit(0);
+        // return 0;
+    }
+    catch (args::ParseError &e)
+    {
+        std::cerr << e.what() << std::endl;
+        std::cerr << parser;
+        return 1;
+    }
+    catch (args::ValidationError &e)
+    {
+        std::cerr << e.what() << std::endl;
+        std::cerr << parser;
+        return 1;
+    }
 }
