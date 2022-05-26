@@ -72,10 +72,12 @@ unsigned int get_number_domain(unsigned long position, unsigned long total, unsi
 unsigned long generate_random_in_range(unsigned long position, unsigned long Total_Numbers, int L)
 {
     int l = L;
+
     long ret;
 
     uint min_jump = 1;
     uint max_jump = l;
+    // std::cout << "Max jump possible = " << max_jump << std::endl;
 
     // a jump can be only of l windowSizeaces
     int jump = rand() % (max_jump) + min_jump;
@@ -176,9 +178,28 @@ unsigned long generate_random_in_range(unsigned long position, unsigned long Tot
 
 // unsigned long find_swap_brute_force(unsigned long position, unsigned long Total_Numbers, int l)
 // {
-//     unsigned long start, end;
+//     unsigned long start = position - l;
+//     unsigned long end = position + l;
 
-//     //
+//     // start position should usually be (position - l) and end should be (position + l)
+//     //  however, we need to check for edge cases
+
+//     if (position - l < 0)
+//     {
+//         start = 0;
+//     }
+
+//     if (position + l > Total_Numbers)
+//     {
+//         end = Total_Numbers;
+//     }
+
+//     // now, loop through from start to end
+//     // we will pick the first valid swap spot
+//     for(unsigned long i = start; i < end; i++)
+//     {
+
+//     }
 // }
 
 /*
@@ -240,7 +261,7 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
     unsigned long windowSize = 1;
     std::cout << "pOut = " << p_outOfRange << std::endl;
     std::cout << "L% = " << L << std::endl;
-    std::cout << "L absolute = " << TOTAL_NUMBERS * L / 100;
+    std::cout << "L absolute = " << l_absolute << std::endl;
     std::cout << "limit = " << noise_limit << std::endl;
     for (unsigned long i = 0; i < TOTAL_NUMBERS; i++, w += windowSize)
     {
@@ -285,7 +306,7 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
         int num_tries = 4;
         while (num_tries > 0)
         {
-            r = generate_random_in_range(i, TOTAL_NUMBERS, L);
+            r = generate_random_in_range(i, TOTAL_NUMBERS, l_absolute);
             num_tries--;
 
             // check for cascading swaps, i.e. we should not pick a spot again to swap
@@ -332,7 +353,7 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
         bool found = false;
         while (num_tries > 0)
         {
-            r = generate_random_in_range(i, TOTAL_NUMBERS, L);
+            r = generate_random_in_range(i, TOTAL_NUMBERS, l_absolute);
             num_tries--;
             // check for cascading swaps, i.e. we should not pick a spot again to swap
             // also we should not pick one of our already defined source places
@@ -371,10 +392,65 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
 
     std::cout << "Left out sources after increased jumps = " << left_out_sources.size() << std::endl;
 
-    // // now let us give one final try with brute force
-    // for (auto it = left_out_sources.begin(); it != left_out_sources.end();)
-    // {
-    // }
+    // now let us give one final try with brute force
+    for (auto it = left_out_sources.begin(); it != left_out_sources.end();)
+    {
+        unsigned long position = *it;
+        unsigned long start = position - l_absolute;
+        unsigned long end = position + l_absolute;
+
+        bool found = false;
+
+        // start position should usually be (position - l) and end should be (position + l)
+        //  however, we need to check for edge cases
+
+        if (position - l_absolute < 0)
+        {
+            start = 0;
+        }
+
+        if (position + l_absolute > TOTAL_NUMBERS)
+        {
+            end = TOTAL_NUMBERS;
+        }
+
+        // now, loop through from start to end
+        // we will pick the first valid swap spot
+        for (unsigned long r = start; r < end; r++)
+        {
+            if (swaps.find(r) != swaps.end() && myset.find(r) != myset.end())
+            {
+
+                continue;
+            }
+            else
+            {
+                // if we found an eligible swap
+                swaps.insert(r);
+
+                unsigned long temp = array[position];
+                array[position] = array[r];
+                array[r] = temp;
+
+                noise_counter++;
+
+                // remove the current source from left out sources
+                it = left_out_sources.erase(it);
+                found = true;
+
+                // we can break out of the loop
+                break;
+            }
+        }
+        // manually increment iterator only if found is false
+        // else, the erase operation would have automatically moved the iterator ahead
+        if (!found)
+        {
+            ++it;
+        }
+    }
+
+    std::cout << "Left out sources after brute force = " << left_out_sources.size() << std::endl;
 
     std::cout << "Noise counter = " << noise_counter << std::endl;
     std::cout << "Noise limit = " << noise_limit << std::endl;
