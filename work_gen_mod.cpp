@@ -153,8 +153,8 @@ unsigned long generate_beta_random_in_range(long position, unsigned long Total_N
     if (ret < 0)
     {
         std::cout << "ret = " << ret << std::endl;
-        std::cout << "position = "<<position<<"\tlow = " << low_jump << "\thigh = " << high_jump << "\trand = " << randFromDist << std::endl;
-        std::cout<<(position + low_jump)<<std::endl;
+        std::cout << "position = " << position << "\tlow = " << low_jump << "\thigh = " << high_jump << "\trand = " << randFromDist << std::endl;
+        std::cout << (position + low_jump) << std::endl;
         exit(0);
     }
     else if (ret >= Total_Numbers)
@@ -382,7 +382,7 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
         unsigned seed = std::chrono::steady_clock::now().time_since_epoch().count();
         std::default_random_engine e(seed);
 
-        std::uniform_int_distribution<unsigned long> distr(1, TOTAL_NUMBERS);
+        std::uniform_int_distribution<unsigned long> distr(1, TOTAL_NUMBERS - 1);
         unsigned long i = distr(e);
 
         if (myset.find(i) != myset.end())
@@ -418,7 +418,7 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
 
             // check for cascading swaps, i.e. we should not pick a spot again to swap
             // also we should not pick one of our already defined source places
-            if (swaps.find(r) != swaps.end() && myset.find(r) != myset.end())
+            if ((r == i) || swaps.find(r) != swaps.end() && myset.find(r) != myset.end())
             {
                 // if we ran out of tries
                 if (num_tries == 0)
@@ -428,10 +428,16 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
                 }
                 continue;
             }
+
             else
             {
                 // std::cout << "found swap" << std::endl;
                 swaps.insert(r);
+
+                if (r == i)
+                {
+                    std::cout << "same place" << std::endl;
+                }
 
                 if (abs(int(r - i)) < min_l)
                     min_l = abs(int(r - i));
@@ -470,7 +476,7 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
             num_tries--;
             // check for cascading swaps, i.e. we should not pick a spot again to swap
             // also we should not pick one of our already defined source places
-            if (swaps.find(r) != swaps.end() && myset.find(r) != myset.end())
+            if ((r == i) || swaps.find(r) != swaps.end() && myset.find(r) != myset.end())
             {
                 // if we run out of tries, we keep the element in the left_out_sources
                 continue;
