@@ -9,6 +9,9 @@
 #include <cassert>
 #include <chrono>
 #include <cmath>
+#include <boost/math/distributions.hpp>
+
+using namespace boost::math;
 
 inline bool ledger_exists();
 void generate_one_file(unsigned long pTOTAL_NUMBERS, int k, int l, int pseed);
@@ -49,6 +52,32 @@ inline bool ledger_exists()
     return f.good();
 }
 
+int sample_beta()
+{
+    double alpha = 2, beta = 3;
+    unsigned seed = std::chrono::steady_clock::now().time_since_epoch().count();
+    std::default_random_engine e(seed);
+
+    std::uniform_real_distribution<double> distr(0, 1);
+    // double randFromUnif = distr(e);
+
+    double randFromUnif = ((double)rand() / (RAND_MAX));
+
+    beta_distribution<> dist(alpha, beta);
+    double randFromDist = quantile(dist, randFromUnif);
+
+    std::cout << "distr = " << randFromDist << "\t";
+
+    int m = -100;
+    int M = 100;
+
+    int y = m + (M - m) * randFromDist;
+
+    std::cout << "conv = " << y << std::endl;
+
+    return randFromDist;
+}
+
 void generate_one_file(unsigned long pTOTAL_NUMBERS, int k, int l, int pseed, std::string type)
 {
     std::ofstream outfile;
@@ -61,13 +90,67 @@ void generate_one_file(unsigned long pTOTAL_NUMBERS, int k, int l, int pseed, st
     // std::string folder_name = "vary_buffer_workload/";
     //    std::string folder_name = "sorting_workload/";
     outfile << generate_partitions_stream(pTOTAL_NUMBERS, k, l, pseed, folder_name, type) << std::endl;
-
+    // for (int i = 0; i < 10; i++)
+    // {
+    //     sample_beta();
+    // }
     outfile.close();
 }
 
 unsigned int get_number_domain(unsigned long position, unsigned long total, unsigned int domain_)
 {
     return (position * domain_) / total;
+}
+
+unsigned long generate_beta_random_in_range(unsigned long position, unsigned long Total_Numbers, int L, double alpha, double beta)
+{
+    int l = L;
+
+    long ret;
+
+    unsigned seed = std::chrono::steady_clock::now().time_since_epoch().count();
+    std::default_random_engine e(seed);
+
+    // configure jump ranges. Note: Both are inclusive
+    long low_jump = l * -1;
+    long high_jump = l;
+
+    // now, lets do some basic bound checks for the jumps
+
+    if (position + high_jump >= Total_Numbers)
+    {
+        // max_pos can be (Total_Numbers - 1)
+        // high jump should be (max_pos - curr_pos)
+        high_jump = (Total_Numbers - 1) - position;
+    }
+
+    if (position + low_jump < 0)
+    {
+        // min_pos can be 0
+        // low jump should be (curr-pos - min_pos) = curr_pos
+        low_jump = position;
+    }
+
+    // now start beta distribution generation
+    // ------------------------------------------- //
+
+    // first pick a number uniformly at random between 0 and 1
+    double randFromUnif = ((double)rand() / (RAND_MAX));
+
+    beta_distribution<> dist(alpha, beta);
+    // get a number between 0 and 1 according to beta distribution by using inverse transform sampling
+    double randFromDist = quantile(dist, randFromUnif);
+
+    // now, we transform this to the range of low_jump to high_jump
+    long jump = low_jump + ((high_jump - low_jump) * randFromDist);
+
+    // we want to return the swap position
+    ret = position + jump;
+
+    // sanity check
+    assert(ret >= 0 && ret < Total_Numbers);
+
+    return ret;
 }
 
 unsigned long generate_random_in_range(unsigned long position, unsigned long Total_Numbers, int L)
@@ -332,10 +415,10 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
                 // std::cout << "found swap" << std::endl;
                 swaps.insert(r);
 
-                if (abs(r - i) < min_l)
-                    min_l = abs(r - i);
-                else if (abs(r - i) > max_l)
-                    max_l = abs(r - i);
+                if (abs(int(r - i)) < min_l)
+                    min_l = abs(int(r - i));
+                else if (abs(int(r - i)) > max_l)
+                    max_l = abs(int(r - i));
 
                 unsigned long temp = array[i];
                 array[i] = array[r];
@@ -378,10 +461,10 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
                 // if we found an eligible swap
                 swaps.insert(r);
 
-                if (abs(r - i) < min_l)
-                    min_l = abs(r - i);
-                else if (abs(r - i) > max_l)
-                    max_l = abs(r - i);
+                if (abs(int(r - i)) < min_l)
+                    min_l = abs(int(r - i));
+                else if (abs(int(r - i)) > max_l)
+                    max_l = abs(int(r - i));
 
                 unsigned long temp = array[i];
                 array[i] = array[r];
@@ -444,10 +527,10 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
                 // if we found an eligible swap
                 swaps.insert(r);
 
-                if (abs(r - position) < min_l)
-                    min_l = abs(r - position);
-                else if (abs(r - position) > max_l)
-                    max_l = abs(r - position);
+                if (abs(int(r - position)) < min_l)
+                    min_l = abs(int(r - position));
+                else if (abs(int(r - position)) > max_l)
+                    max_l = abs(int(r - position));
 
                 unsigned long temp = array[position];
                 array[position] = array[r];
