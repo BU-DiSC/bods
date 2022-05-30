@@ -102,7 +102,7 @@ unsigned int get_number_domain(unsigned long position, unsigned long total, unsi
     return (position * domain_) / total;
 }
 
-unsigned long generate_beta_random_in_range(unsigned long position, unsigned long Total_Numbers, int L, double alpha, double beta)
+unsigned long generate_beta_random_in_range(long position, unsigned long Total_Numbers, int L, double alpha, double beta)
 {
     int l = L;
 
@@ -128,7 +128,8 @@ unsigned long generate_beta_random_in_range(unsigned long position, unsigned lon
     {
         // min_pos can be 0
         // low jump should be (curr-pos - min_pos) = curr_pos
-        low_jump = position;
+        // std::cout << "low jump!\t" << position << "\t" << low_jump << std::endl;
+        low_jump = -1 * position;
     }
 
     // now start beta distribution generation
@@ -148,7 +149,19 @@ unsigned long generate_beta_random_in_range(unsigned long position, unsigned lon
     ret = position + jump;
 
     // sanity check
-    assert(ret >= 0 && ret < Total_Numbers);
+    // assert(ret >= 0 && ret < Total_Numbers);
+    if (ret < 0)
+    {
+        std::cout << "ret = " << ret << std::endl;
+        std::cout << "position = "<<position<<"\tlow = " << low_jump << "\thigh = " << high_jump << "\trand = " << randFromDist << std::endl;
+        std::cout<<(position + low_jump)<<std::endl;
+        exit(0);
+    }
+    else if (ret >= Total_Numbers)
+    {
+        std::cout << "ret more = " << ret << std::endl;
+        exit(0);
+    }
 
     return ret;
 }
@@ -352,6 +365,10 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
     std::cout << "L absolute = " << l_absolute << std::endl;
     std::cout << "limit = " << noise_limit << std::endl;
     unsigned long min_l = l_absolute, max_l = l_absolute;
+
+    double alpha = 5.0;
+    double beta = 10.0;
+
     for (unsigned long i = 0; i < TOTAL_NUMBERS; i++, w += windowSize)
     {
         array[i] = w;
@@ -395,7 +412,8 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
         int num_tries = 4;
         while (num_tries > 0)
         {
-            r = generate_random_in_range(i, TOTAL_NUMBERS, l_absolute);
+            // r = generate_random_in_range(i, TOTAL_NUMBERS, l_absolute);
+            r = generate_beta_random_in_range(i, TOTAL_NUMBERS, l_absolute, alpha, beta);
             num_tries--;
 
             // check for cascading swaps, i.e. we should not pick a spot again to swap
@@ -447,7 +465,8 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
         bool found = false;
         while (num_tries > 0)
         {
-            r = generate_random_in_range(i, TOTAL_NUMBERS, l_absolute);
+            // r = generate_random_in_range(i, TOTAL_NUMBERS, l_absolute);
+            r = generate_beta_random_in_range(i, TOTAL_NUMBERS, l_absolute, alpha, beta);
             num_tries--;
             // check for cascading swaps, i.e. we should not pick a spot again to swap
             // also we should not pick one of our already defined source places
