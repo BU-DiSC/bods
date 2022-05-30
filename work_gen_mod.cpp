@@ -8,6 +8,7 @@
 #include <iomanip>
 #include <cassert>
 #include <chrono>
+#include <cmath>
 
 inline bool ledger_exists();
 void generate_one_file(unsigned long pTOTAL_NUMBERS, int k, int l, int pseed);
@@ -80,7 +81,11 @@ unsigned long generate_random_in_range(unsigned long position, unsigned long Tot
     // std::cout << "Max jump possible = " << max_jump << std::endl;
 
     // a jump can be only of l windowSizeaces
-    int jump = rand() % (max_jump) + min_jump;
+    // int jump = rand() % (max_jump) + min_jump;
+    unsigned seed = std::chrono::steady_clock::now().time_since_epoch().count();
+    std::default_random_engine e(seed);
+    std::uniform_int_distribution<unsigned long> distr(min_jump, max_jump); // this is inclusive on both ends
+    unsigned long jump = distr(e);
 
     // now lets do a small check. If both jumping forward and backward is invalid,
     // we need to reconfigure the jump to the max limit.
@@ -263,6 +268,7 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
     std::cout << "L% = " << L << std::endl;
     std::cout << "L absolute = " << l_absolute << std::endl;
     std::cout << "limit = " << noise_limit << std::endl;
+    unsigned long min_l = l_absolute, max_l = l_absolute;
     for (unsigned long i = 0; i < TOTAL_NUMBERS; i++, w += windowSize)
     {
         array[i] = w;
@@ -326,6 +332,11 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
                 // std::cout << "found swap" << std::endl;
                 swaps.insert(r);
 
+                if (abs(r - i) < min_l)
+                    min_l = abs(r - i);
+                else if (abs(r - i) > max_l)
+                    max_l = abs(r - i);
+
                 unsigned long temp = array[i];
                 array[i] = array[r];
                 array[r] = temp;
@@ -366,6 +377,11 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
             {
                 // if we found an eligible swap
                 swaps.insert(r);
+
+                if (abs(r - i) < min_l)
+                    min_l = abs(r - i);
+                else if (abs(r - i) > max_l)
+                    max_l = abs(r - i);
 
                 unsigned long temp = array[i];
                 array[i] = array[r];
@@ -428,6 +444,11 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
                 // if we found an eligible swap
                 swaps.insert(r);
 
+                if (abs(r - position) < min_l)
+                    min_l = abs(r - position);
+                else if (abs(r - position) > max_l)
+                    max_l = abs(r - position);
+
                 unsigned long temp = array[position];
                 array[position] = array[r];
                 array[r] = temp;
@@ -454,6 +475,8 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
 
     std::cout << "Noise counter = " << noise_counter << std::endl;
     std::cout << "Noise limit = " << noise_limit << std::endl;
+    std::cout << "Min L = " << min_l << std::endl;
+    std::cout << "Max L = " << max_l << std::endl;
 
     if (type.compare("txt") == 0)
     {
