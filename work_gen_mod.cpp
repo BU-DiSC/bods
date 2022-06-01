@@ -17,9 +17,9 @@
 using namespace boost::math;
 
 inline bool ledger_exists();
-void generate_one_file(unsigned long pTOTAL_NUMBERS, int k, int l, int pseed, std::string folder, std::string type);
+void generate_one_file(unsigned long pTOTAL_NUMBERS, int k, int l, int pseed, std::string folder, std::string type, double alpha, double beta);
 unsigned int get_number_domain(unsigned long position, unsigned long total, unsigned long domain_);
-std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L, int seed, std::string folder, std::string type);
+std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L, int seed, std::string folder, std::string type, double alpha, double beta);
 
 inline void showProgress(const long &n, const long &count);
 inline void showProgress(const long &workload_size, const long &counter)
@@ -81,7 +81,7 @@ int sample_beta()
     return randFromDist;
 }
 
-void generate_one_file(unsigned long pTOTAL_NUMBERS, int k, int l, int pseed, std::string folder, std::string type)
+void generate_one_file(unsigned long pTOTAL_NUMBERS, int k, int l, int pseed, std::string folder, std::string type, double alpha, double beta)
 {
     std::ofstream outfile;
 
@@ -92,7 +92,7 @@ void generate_one_file(unsigned long pTOTAL_NUMBERS, int k, int l, int pseed, st
     std::string folder_name = "./";
     // std::string folder_name = "vary_buffer_workload/";
     //    std::string folder_name = "sorting_workload/";
-    outfile << generate_partitions_stream(pTOTAL_NUMBERS, k, l, pseed, folder_name, type) << std::endl;
+    outfile << generate_partitions_stream(pTOTAL_NUMBERS, k, l, pseed, folder_name, type, alpha, beta) << std::endl;
     // for (int i = 0; i < 10; i++)
     // {
     //     sample_beta();
@@ -327,7 +327,7 @@ double findMedian(std::vector<long> a,
     Each partition of L elements is shuffled, and has some noise (randomness) linked to the
     percent_outRange parameter.
     */
-std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L, int seed, std::string folder = "./Data", std::string type = "bin")
+std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L, int seed, std::string folder = "./Data", std::string type = "bin", double alpha = 1.0, double beta = 1.0)
 {
     // float p_outOfRange = (double)K / TOTAL_NUMBERS;
     float p_outOfRange = K;
@@ -386,9 +386,6 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
     unsigned long min_l = l_absolute, max_l = 0;
 
     std::vector<long> l_values;
-
-    double alpha = 5.0;
-    double beta = 10.0;
 
     for (unsigned long i = 0; i < TOTAL_NUMBERS; i++, w += windowSize)
     {
@@ -714,6 +711,8 @@ int main(int argc, char **argv)
     args::ValueFlag<int> seed_cmd(group1, "S", "Seed Value", {'S', "seed_val"});
     args::Flag text_file_cmd(group1, "txt", "output as txt file", {"txt", "txt_file"});
     args::ValueFlag<std::string> path_cmd(group1, "dir_path", "Path to output directory", {'p', "path"});
+    args::ValueFlag<double> alpha_cmd(group1, "a", "Seed Value", {'a', "alpha_val"});
+    args::ValueFlag<double> beta_cmd(group1, "b", "Seed Value", {'b', "beta_val"});
 
     if (argc == 1)
     {
@@ -736,6 +735,8 @@ int main(int argc, char **argv)
         int seedValue = args::get(seed_cmd);
         std::string type = text_file_cmd ? "txt" : "bin";
         std::string pathToDirectory = args::get(path_cmd);
+        double alpha = args::get(alpha_cmd);
+        double beta = args::get(beta_cmd);
 
         // for simplicity lets use window size = 1
         int windowSize = 1;
@@ -743,7 +744,7 @@ int main(int argc, char **argv)
         // std::cout << "Total = " << totalNumbers << std::endl;
         // std::cout << "domain = " << domain << std::endl;
 
-        generate_one_file(totalNumbers, K, L, seedValue, pathToDirectory, type);
+        generate_one_file(totalNumbers, K, L, seedValue, pathToDirectory, type, alpha, beta);
     }
     catch (args::Help &)
     {
