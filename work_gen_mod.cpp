@@ -11,11 +11,13 @@
 #include <cmath>
 #include <boost/math/distributions.hpp>
 #include <vector>
+#include <string>
+#include "args.hxx"
 
 using namespace boost::math;
 
 inline bool ledger_exists();
-void generate_one_file(unsigned long pTOTAL_NUMBERS, int k, int l, int pseed);
+void generate_one_file(unsigned long pTOTAL_NUMBERS, int k, int l, int pseed, std::string folder, std::string type);
 unsigned int get_number_domain(unsigned long position, unsigned long total, unsigned long domain_);
 std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L, int seed, std::string folder, std::string type);
 
@@ -79,7 +81,7 @@ int sample_beta()
     return randFromDist;
 }
 
-void generate_one_file(unsigned long pTOTAL_NUMBERS, int k, int l, int pseed, std::string type)
+void generate_one_file(unsigned long pTOTAL_NUMBERS, int k, int l, int pseed, std::string folder, std::string type)
 {
     std::ofstream outfile;
 
@@ -443,7 +445,7 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
             min_l = abs(int(r - i));
         else if (abs(int(r - i)) > max_l)
             max_l = abs(int(r - i));
-            
+
         unsigned long temp = array[i];
         array[i] = array[r];
         array[r] = temp;
@@ -683,18 +685,82 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
 
 int main(int argc, char **argv)
 {
-    if (argc < 5)
+    // if (argc < 5)
+    // {
+    //     std::cout << "Program requires 6 inputs as parameters. \n Use format: ./execs/workload_generator.exe totalNumbers domain windowSize kNumber lNumber seedValue type" << std::endl;
+    //     return 0;
+    // }
+
+    // unsigned long totalNumbers = atol(argv[1]);
+    // int noisePercentage = atol(argv[2]);
+    // int lPercentage = atoi(argv[3]);
+    // int seedValue = atoi(argv[4]);
+    // std::string type = argv[5];
+    // // std::cout<<"wind = "<<windowSize<<std::endl;
+
+    // generate_one_file(totalNumbers, noisePercentage, lPercentage, seedValue, type);
+
+    args::ArgumentParser parser("Sortedness Parser.", "");
+
+    args::Group group1(parser, "These arguments are REQUIRED",
+                       args::Group::Validators::DontCare);
+    args::Group group4(parser, "Optional switches and parameters:",
+                       args::Group::Validators::DontCare);
+
+    args::ValueFlag<unsigned long> total_numbers_cmd(group1, "N", "Total number of entries to generate", {'N', "total_entries"});
+    // args::ValueFlag<unsigned long> domain_cmd(group1, "D", "Domain of entries", {'D', "domain"});
+    args::ValueFlag<int> k_cmd(group1, "K", "% of out of order entries", {'K', "k_pt"});
+    args::ValueFlag<int> l_cmd(group1, "L", "Maximum displacement of entries as %", {'L', "l_pt"});
+    args::ValueFlag<int> seed_cmd(group1, "S", "Seed Value", {'S', "seed_val"});
+    args::Flag text_file_cmd(group1, "txt", "output as txt file", {"txt", "txt_file"});
+    args::ValueFlag<std::string> path_cmd(group1, "dir_path", "Path to output directory", {'p', "path"});
+
+    if (argc == 1)
     {
-        std::cout << "Program requires 6 inputs as parameters. \n Use format: ./execs/workload_generator.exe totalNumbers domain windowSize kNumber lNumber seedValue type" << std::endl;
-        return 0;
+        std::cout << parser;
+        exit(0);
     }
 
-    unsigned long totalNumbers = atol(argv[1]);
-    int noisePercentage = atol(argv[2]);
-    int lPercentage = atoi(argv[3]);
-    int seedValue = atoi(argv[4]);
-    std::string type = argv[5];
-    // std::cout<<"wind = "<<windowSize<<std::endl;
+    try
+    {
+        parser.ParseCLI(argc, argv);
+        unsigned long totalNumbers = args::get(total_numbers_cmd);
+        // unsigned long domain = args::get(domain_cmd);
+        int K = args::get(k_cmd);
 
-    generate_one_file(totalNumbers, noisePercentage, lPercentage, seedValue, type);
+        // fix K for new definition
+        K = K / 2;
+
+        // since we are using rand() function, we only have to take l as an int
+        int L = args::get(l_cmd);
+        int seedValue = args::get(seed_cmd);
+        std::string type = text_file_cmd ? "txt" : "bin";
+        std::string pathToDirectory = args::get(path_cmd);
+
+        // for simplicity lets use window size = 1
+        int windowSize = 1;
+
+        // std::cout << "Total = " << totalNumbers << std::endl;
+        // std::cout << "domain = " << domain << std::endl;
+
+        generate_one_file(totalNumbers, K, L, seedValue, pathToDirectory, type);
+    }
+    catch (args::Help &)
+    {
+        std::cout << parser;
+        exit(0);
+        // return 0;
+    }
+    catch (args::ParseError &e)
+    {
+        std::cerr << e.what() << std::endl;
+        std::cerr << parser;
+        return 1;
+    }
+    catch (args::ValidationError &e)
+    {
+        std::cerr << e.what() << std::endl;
+        std::cerr << parser;
+        return 1;
+    }
 }
