@@ -10,6 +10,7 @@
 #include <chrono>
 #include <cmath>
 #include <boost/math/distributions.hpp>
+#include <vector>
 
 using namespace boost::math;
 
@@ -277,31 +278,47 @@ unsigned long generate_random_in_range(unsigned long position, unsigned long Tot
     return (unsigned long)ret;
 }
 
-// unsigned long find_swap_brute_force(unsigned long position, unsigned long Total_Numbers, int l)
-// {
-//     unsigned long start = position - l;
-//     unsigned long end = position + l;
+// code inspired from GeekForGeeks
+double findMedian(std::vector<long> a,
+                  int n)
+{
 
-//     // start position should usually be (position - l) and end should be (position + l)
-//     //  however, we need to check for edge cases
+    // If size of the arr[] is even
+    if (n % 2 == 0)
+    {
 
-//     if (position - l < 0)
-//     {
-//         start = 0;
-//     }
+        // Applying nth_element
+        // on n/2th index
+        nth_element(a.begin(),
+                    a.begin() + n / 2,
+                    a.end());
 
-//     if (position + l > Total_Numbers)
-//     {
-//         end = Total_Numbers;
-//     }
+        // Applying nth_element
+        // on (n-1)/2 th index
+        nth_element(a.begin(),
+                    a.begin() + (n - 1) / 2,
+                    a.end());
 
-//     // now, loop through from start to end
-//     // we will pick the first valid swap spot
-//     for(unsigned long i = start; i < end; i++)
-//     {
+        // Find the average of value at
+        // index N/2 and (N-1)/2
+        return (double)(a[(n - 1) / 2] + a[n / 2]) / 2.0;
+    }
 
-//     }
-// }
+    // If size of the arr[] is odd
+    else
+    {
+
+        // Applying nth_element
+        // on n/2
+        nth_element(a.begin(),
+                    a.begin() + n / 2,
+                    a.end());
+
+        // Value at index (N/2)th
+        // is the median
+        return (double)a[n / 2];
+    }
+}
 
 /*
     Function which generates uniform data over some domain, and write it in binary format.
@@ -364,7 +381,9 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
     std::cout << "L% = " << L << std::endl;
     std::cout << "L absolute = " << l_absolute << std::endl;
     std::cout << "limit = " << noise_limit << std::endl;
-    unsigned long min_l = l_absolute, max_l = l_absolute;
+    unsigned long min_l = l_absolute, max_l = 0;
+
+    std::vector<long> l_values;
 
     double alpha = 5.0;
     double beta = 10.0;
@@ -403,7 +422,43 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
 
     std::cout << "ctr = " << ctr << std::endl;
 
-    // now, loop through these values
+    // first, we want to ensure that the max displacement is L
+    // this means at least one swap has to happen by L positions
+    for (auto itr = myset.begin(); itr != myset.end(); itr++)
+    {
+        unsigned long i = *itr;
+        unsigned long r = i + l_absolute;
+
+        std::cout << "r = " << r << std::endl;
+
+        // make sure r not another source for a swap
+        if (myset.find(r) != myset.end())
+        {
+            // if indeed this is a source, move on to the next source and then pick a swap at L positions
+            continue;
+        }
+        swaps.insert(r);
+        // max_l = r - i;
+        if (abs(int(r - i)) < min_l)
+            min_l = abs(int(r - i));
+        else if (abs(int(r - i)) > max_l)
+            max_l = abs(int(r - i));
+            
+        unsigned long temp = array[i];
+        array[i] = array[r];
+        array[r] = temp;
+
+        noise_counter++;
+
+        l_values.push_back(r - i);
+
+        // we should also remove this source
+        itr = myset.erase(itr);
+        break;
+    }
+
+    std::cout << "Have at least one element with L" << std::endl;
+    // now, loop through the sources values
     for (auto itr = myset.begin(); itr != myset.end(); itr++)
     {
         unsigned long r;
@@ -449,6 +504,8 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
                 array[r] = temp;
 
                 noise_counter++;
+
+                l_values.push_back(abs(int(r - i)));
                 break;
             }
         }
@@ -500,6 +557,8 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
                 // remove the current source from left out sources
                 it = left_out_sources.erase(it);
                 found = true;
+
+                l_values.push_back(abs(int(r - i)));
 
                 // we can break out of the loop
                 break;
@@ -567,6 +626,8 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
                 it = left_out_sources.erase(it);
                 found = true;
 
+                l_values.push_back(abs(int(r - position)));
+
                 // we can break out of the loop
                 break;
             }
@@ -585,6 +646,9 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
     std::cout << "Noise limit = " << noise_limit << std::endl;
     std::cout << "Min L = " << min_l << std::endl;
     std::cout << "Max L = " << max_l << std::endl;
+
+    double median_l = findMedian(l_values, l_values.size());
+    std::cout << "Median L = " << median_l << std::endl;
 
     if (type.compare("txt") == 0)
     {
