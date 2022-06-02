@@ -17,9 +17,9 @@
 using namespace boost::math;
 
 inline bool ledger_exists();
-void generate_one_file(unsigned long pTOTAL_NUMBERS, int k, int l, int pseed, std::string folder, std::string type, double alpha, double beta);
+void generate_one_file(unsigned long pTOTAL_NUMBERS, int k, int l, int pseed, std::string folder, std::string type, double alpha, double beta, int payload_size);
 unsigned int get_number_domain(unsigned long position, unsigned long total, unsigned long domain_);
-std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L, int seed, std::string folder, std::string type, double alpha, double beta);
+std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L, int seed, std::string folder, std::string type, double alpha, double beta, int payload_size);
 
 inline void showProgress(const long &n, const long &count);
 inline void showProgress(const long &workload_size, const long &counter)
@@ -47,6 +47,12 @@ inline void showProgress(const long &workload_size, const long &counter)
         std::cout << "\n";
         return;
     }
+}
+
+std::string generateValue(int value_size)
+{
+    std::string value = std::string(value_size, 'a' + (rand() % 26));
+    return value;
 }
 
 inline bool ledger_exists()
@@ -81,7 +87,7 @@ int sample_beta()
     return randFromDist;
 }
 
-void generate_one_file(unsigned long pTOTAL_NUMBERS, int k, int l, int pseed, std::string folder, std::string type, double alpha, double beta)
+void generate_one_file(unsigned long pTOTAL_NUMBERS, int k, int l, int pseed, std::string folder, std::string type, double alpha, double beta, int payload_size)
 {
     std::ofstream outfile;
 
@@ -92,7 +98,7 @@ void generate_one_file(unsigned long pTOTAL_NUMBERS, int k, int l, int pseed, st
     std::string folder_name = "./";
     // std::string folder_name = "vary_buffer_workload/";
     //    std::string folder_name = "sorting_workload/";
-    outfile << generate_partitions_stream(pTOTAL_NUMBERS, k, l, pseed, folder_name, type, alpha, beta) << std::endl;
+    outfile << generate_partitions_stream(pTOTAL_NUMBERS, k, l, pseed, folder, type, alpha, beta, payload_size) << std::endl;
     // for (int i = 0; i < 10; i++)
     // {
     //     sample_beta();
@@ -327,7 +333,7 @@ double findMedian(std::vector<long> a,
     Each partition of L elements is shuffled, and has some noise (randomness) linked to the
     percent_outRange parameter.
     */
-std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L, int seed, std::string folder = "./Data", std::string type = "bin", double alpha = 1.0, double beta = 1.0)
+std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L, int seed, std::string folder = "./Data", std::string type = "bin", double alpha = 1.0, double beta = 1.0, int payload_size = 252)
 {
     // float p_outOfRange = (double)K / TOTAL_NUMBERS;
     float p_outOfRange = K;
@@ -352,17 +358,20 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
 
     std::ofstream myfile1;
     // f1name += ".dat";
-    if (type.compare("txt") == 0)
-    {
-        f1name += ".txt";
-        myfile1.open(f1name);
-    }
+    // if (type.compare("txt") == 0)
+    // {
+    //     f1name += ".txt";
+    //     myfile1.open(f1name);
+    // }
 
-    else
-    {
-        f1name += ".dat";
-        myfile1.open(f1name, std::ios::binary);
-    }
+    // else
+    // {
+    //     f1name += ".dat";
+    //     myfile1.open(f1name, std::ios::binary);
+    // }
+
+    f1name += ".txt";
+    myfile1.open(f1name);
 
     // std::ofstream myfile(fname, std::ios::binary);
 
@@ -379,10 +388,10 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
     std::unordered_set<unsigned long> left_out_sources;
     unsigned long w = 0;
     unsigned long windowSize = 1;
-    std::cout << "pOut = " << p_outOfRange << std::endl;
+    // std::cout << "pOut = " << p_outOfRange << std::endl;
     std::cout << "L% = " << L << std::endl;
     std::cout << "L absolute = " << l_absolute << std::endl;
-    std::cout << "limit = " << noise_limit << std::endl;
+    std::cout << "No. of Required Swaps = " << noise_limit << std::endl;
     unsigned long min_l = l_absolute, max_l = 0;
 
     std::vector<long> l_values;
@@ -419,7 +428,7 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
         }
     }
 
-    std::cout << "ctr = " << ctr << std::endl;
+    std::cout << "No. of sources generated for swaps = " << ctr << std::endl;
 
     // first, we want to ensure that the max displacement is L
     // this means at least one swap has to happen by L positions
@@ -428,7 +437,7 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
         unsigned long i = *itr;
         unsigned long r = i + l_absolute;
 
-        std::cout << "r = " << r << std::endl;
+        // std::cout << "r = " << r << std::endl;
 
         // make sure r not another source for a swap
         if (myset.find(r) != myset.end())
@@ -451,14 +460,16 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
 
         l_values.push_back(r - i);
 
-        // we should also remove this source
-        itr = myset.erase(itr);
         break;
     }
 
-    std::cout << "Have at least one element with L" << std::endl;
+    std::cout << "We now have at least one element with L displacement..." << std::endl;
+
+    // since the first source has already been taken care of, simply start from the next
+    auto itr = myset.begin();
+    ++itr;
     // now, loop through the sources values
-    for (auto itr = myset.begin(); itr != myset.end(); itr++)
+    for (; itr != myset.end(); itr++)
     {
         unsigned long r;
         unsigned long i = *itr;
@@ -641,34 +652,41 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
 
     std::cout << "Left out sources after brute force = " << left_out_sources.size() << std::endl;
 
-    std::cout << "Noise counter = " << noise_counter << std::endl;
-    std::cout << "Noise limit = " << noise_limit << std::endl;
+    std::cout << "Swaps made = " << noise_counter << std::endl;
+    // std::cout << "Noise limit = " << noise_limit << std::endl;
     std::cout << "Min L = " << min_l << std::endl;
     std::cout << "Max L = " << max_l << std::endl;
 
     double median_l = findMedian(l_values, l_values.size());
     std::cout << "Median L = " << median_l << std::endl;
 
-    if (type.compare("txt") == 0)
+    // if (type.compare("txt") == 0)
+    // {
+    //     for (unsigned long j = 0; j < TOTAL_NUMBERS; ++j)
+    //     {
+    //         // auto pair = std::make_pair(array[j], array[j]);
+    //         // //myfile.write(reinterpret_cast<char *>(&pair), sizeof(std::pair<unsigned int, unsigned int>));
+    //         // myfile1.write(reinterpret_cast<char *>(&array[j]), sizeof(int));
+    //         myfile1 << array[j] << ",";
+    //     }
+    // }
+    // else
+    // {
+    //     for (unsigned long j = 0; j < TOTAL_NUMBERS; ++j)
+    //     {
+    //         // auto pair = std::make_pair(array[j], array[j]);
+    //         // myfile.write(reinterpret_cast<char *>(&pair), sizeof(std::pair<unsigned int, unsigned int>));
+    //         myfile1.write(reinterpret_cast<char *>(&array[j]), sizeof(unsigned long));
+    //         // std::cout<<array[j]<<std::endl;
+    //         // break;
+    //     }
+    // }
+
+    for (unsigned long j = 0; j < TOTAL_NUMBERS; j++)
     {
-        for (unsigned long j = 0; j < TOTAL_NUMBERS; ++j)
-        {
-            // auto pair = std::make_pair(array[j], array[j]);
-            // //myfile.write(reinterpret_cast<char *>(&pair), sizeof(std::pair<unsigned int, unsigned int>));
-            // myfile1.write(reinterpret_cast<char *>(&array[j]), sizeof(int));
-            myfile1 << array[j] << ",";
-        }
-    }
-    else
-    {
-        for (unsigned long j = 0; j < TOTAL_NUMBERS; ++j)
-        {
-            // auto pair = std::make_pair(array[j], array[j]);
-            // myfile.write(reinterpret_cast<char *>(&pair), sizeof(std::pair<unsigned int, unsigned int>));
-            myfile1.write(reinterpret_cast<char *>(&array[j]), sizeof(unsigned long));
-            // std::cout<<array[j]<<std::endl;
-            // break;
-        }
+        myfile1 << array[j] << "," << generateValue(payload_size);
+        if (j != TOTAL_NUMBERS - 1)
+            myfile1 << "\n";
     }
 
     // myfile.close();
@@ -710,9 +728,10 @@ int main(int argc, char **argv)
     args::ValueFlag<int> l_cmd(group1, "L", "Maximum displacement of entries as %", {'L', "l_pt"});
     args::ValueFlag<int> seed_cmd(group1, "S", "Seed Value", {'S', "seed_val"});
     args::Flag text_file_cmd(group1, "txt", "output as txt file", {"txt", "txt_file"});
-    args::ValueFlag<std::string> path_cmd(group1, "dir_path", "Path to output directory", {'p', "path"});
-    args::ValueFlag<double> alpha_cmd(group1, "a", "Seed Value", {'a', "alpha_val"});
-    args::ValueFlag<double> beta_cmd(group1, "b", "Seed Value", {'b', "beta_val"});
+    args::ValueFlag<std::string> path_cmd(group1, "dir_path", "Path to output directory", {'o', "path"});
+    args::ValueFlag<double> alpha_cmd(group1, "a", "Alpha Value", {'a', "alpha_val"});
+    args::ValueFlag<double> beta_cmd(group1, "b", "Beta Value", {'b', "beta_val"});
+    args::ValueFlag<int> payload_cmd(group1, "P", "Payload Size in Bytes", {'P', "beta_val"});
 
     if (argc == 1)
     {
@@ -737,6 +756,7 @@ int main(int argc, char **argv)
         std::string pathToDirectory = args::get(path_cmd);
         double alpha = args::get(alpha_cmd);
         double beta = args::get(beta_cmd);
+        int payload_size = args::get(payload_cmd);
 
         // for simplicity lets use window size = 1
         int windowSize = 1;
@@ -744,7 +764,7 @@ int main(int argc, char **argv)
         // std::cout << "Total = " << totalNumbers << std::endl;
         // std::cout << "domain = " << domain << std::endl;
 
-        generate_one_file(totalNumbers, K, L, seedValue, pathToDirectory, type, alpha, beta);
+        generate_one_file(totalNumbers, K, L, seedValue, pathToDirectory, type, alpha, beta, payload_size);
     }
     catch (args::Help &)
     {
