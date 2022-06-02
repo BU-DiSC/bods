@@ -171,7 +171,7 @@ unsigned long generate_beta_random_in_range(long position, unsigned long Total_N
         std::cout << "ret more = " << ret << std::endl;
         exit(0);
     }
-
+    assert(ret >= 0 && ret < Total_Numbers);
     return ret;
 }
 
@@ -398,7 +398,7 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
 
     for (unsigned long i = 0; i < TOTAL_NUMBERS; i++, w += windowSize)
     {
-        array[i] = w;
+        array[i] = i;
     }
 
     // generate noise_limit number of unique random numbers
@@ -409,7 +409,7 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
         unsigned seed = std::chrono::steady_clock::now().time_since_epoch().count();
         std::default_random_engine e(seed);
 
-        std::uniform_int_distribution<unsigned long> distr(1, TOTAL_NUMBERS - 1);
+        std::uniform_int_distribution<unsigned long> distr(0, TOTAL_NUMBERS - 1);
         unsigned long i = distr(e);
 
         if (myset.find(i) != myset.end())
@@ -432,10 +432,14 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
 
     // first, we want to ensure that the max displacement is L
     // this means at least one swap has to happen by L positions
-    for (auto itr = myset.begin(); itr != myset.end(); itr++)
+    unsigned long generated_source;
+    for (auto iterator = myset.begin(); iterator != myset.end(); iterator++)
     {
-        unsigned long i = *itr;
+        unsigned long i = *iterator;
         unsigned long r = i + l_absolute;
+
+        if (r > TOTAL_NUMBERS)
+            r = i - l_absolute;
 
         // std::cout << "r = " << r << std::endl;
 
@@ -446,6 +450,10 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
             continue;
         }
         swaps.insert(r);
+        if (r == 0)
+        {
+            std::cout << "swap 0 (1)" << std::endl;
+        }
         // max_l = r - i;
         if (abs(int(r - i)) < min_l)
             min_l = abs(int(r - i));
@@ -458,6 +466,8 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
 
         noise_counter++;
 
+        generated_source = i;
+
         l_values.push_back(r - i);
 
         break;
@@ -467,12 +477,18 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
 
     // since the first source has already been taken care of, simply start from the next
     auto itr = myset.begin();
-    ++itr;
+    // std::cout << "itr = " << *itr << std::endl;
+    // ++itr;
+    // std::cout << "next = " << *itr << std::endl;
     // now, loop through the sources values
     for (; itr != myset.end(); itr++)
     {
         unsigned long r;
         unsigned long i = *itr;
+
+        // check if this position is already the first generated source
+        if (generated_source == i)
+            continue;
         // std::cout << i << " ";
         int num_tries = 4;
         while (num_tries > 0)
@@ -483,7 +499,7 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
 
             // check for cascading swaps, i.e. we should not pick a spot again to swap
             // also we should not pick one of our already defined source places
-            if ((r == i) || swaps.find(r) != swaps.end() && myset.find(r) != myset.end())
+            if ((r == i) || swaps.find(r) != swaps.end() || myset.find(r) != myset.end())
             {
                 // if we ran out of tries
                 if (num_tries == 0)
@@ -499,6 +515,11 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
                 // std::cout << "found swap" << std::endl;
                 swaps.insert(r);
 
+                if (r == 0)
+                {
+                    std::cout << "swap 0 (2)" << std::endl;
+                }
+
                 if (r == i)
                 {
                     std::cout << "same place" << std::endl;
@@ -509,6 +530,10 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
                 else if (abs(int(r - i)) > max_l)
                     max_l = abs(int(r - i));
 
+                if (array[i] == 0 || array[r] == 0)
+                {
+                    std::cout << "here (1)" << std::endl;
+                }
                 unsigned long temp = array[i];
                 array[i] = array[r];
                 array[r] = temp;
@@ -543,7 +568,7 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
             num_tries--;
             // check for cascading swaps, i.e. we should not pick a spot again to swap
             // also we should not pick one of our already defined source places
-            if ((r == i) || swaps.find(r) != swaps.end() && myset.find(r) != myset.end())
+            if ((r == i) || swaps.find(r) != swaps.end() || myset.find(r) != myset.end())
             {
                 // if we run out of tries, we keep the element in the left_out_sources
                 continue;
@@ -553,10 +578,20 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
                 // if we found an eligible swap
                 swaps.insert(r);
 
+                if (r == 0)
+                {
+                    std::cout << "swap 0 (3)" << std::endl;
+                }
+
                 if (abs(int(r - i)) < min_l)
                     min_l = abs(int(r - i));
                 else if (abs(int(r - i)) > max_l)
                     max_l = abs(int(r - i));
+
+                if (array[i] == 0 || array[r] == 0)
+                {
+                    std::cout << "here (2)" << std::endl;
+                }
 
                 unsigned long temp = array[i];
                 array[i] = array[r];
@@ -586,9 +621,9 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
     std::cout << "Left out sources after increased jumps = " << left_out_sources.size() << std::endl;
 
     // now let us give one final try with brute force
-    for (auto it = left_out_sources.begin(); it != left_out_sources.end();)
+    for (auto iter = left_out_sources.begin(); iter != left_out_sources.end();)
     {
-        unsigned long position = *it;
+        unsigned long position = *iter;
         unsigned long start = position - l_absolute;
         unsigned long end = position + l_absolute;
 
@@ -611,7 +646,7 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
         // we will pick the first valid swap spot
         for (unsigned long r = start; r < end; r++)
         {
-            if (swaps.find(r) != swaps.end() && myset.find(r) != myset.end())
+            if (r == position || swaps.find(r) != swaps.end() || myset.find(r) != myset.end())
             {
 
                 continue;
@@ -620,11 +655,20 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
             {
                 // if we found an eligible swap
                 swaps.insert(r);
+                if (r == 0)
+                {
+                    std::cout << "swap 0 (4)" << std::endl;
+                }
 
                 if (abs(int(r - position)) < min_l)
                     min_l = abs(int(r - position));
                 else if (abs(int(r - position)) > max_l)
                     max_l = abs(int(r - position));
+
+                if (array[position] == 0 || array[r] == 0)
+                {
+                    std::cout << "here (3)" << std::endl;
+                }
 
                 unsigned long temp = array[position];
                 array[position] = array[r];
@@ -633,7 +677,7 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
                 noise_counter++;
 
                 // remove the current source from left out sources
-                it = left_out_sources.erase(it);
+                iter = left_out_sources.erase(iter);
                 found = true;
 
                 l_values.push_back(abs(int(r - position)));
@@ -646,7 +690,7 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
         // else, the erase operation would have automatically moved the iterator ahead
         if (!found)
         {
-            ++it;
+            ++iter;
         }
     }
 
