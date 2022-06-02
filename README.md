@@ -24,6 +24,6 @@ For example, a sample ingestion workload to create 1M entries with K=L=100,000 (
 ```
 Here, we used "1" as a seed value, and alpha=2.5 while beta=2.9 for the sortedness distribution.  We place this created workload in the "workloads/" directory, and use a payload size of 252 Bytes. 
 
-This will by default generate a csv file with the key in the first column and a randomly generated payload (string) in the second column.
+This will by default generate a comma separated txt file with the key in the first column and a randomly generated payload (string) in the second column.
 
 Note: You will need to create the directory to place the workload if it does not pre-exist. The workload generator will not create this directory automatically. 
