@@ -15,16 +15,15 @@ As of now, this workload generator only supports creating ingestion workloads of
 1. Use the "make" command to compile the workload generator cpp file 
 2. Run the file using the following format: 
   ```c
-  ./sortedness_workload_generator -N <#. entries to generate> -D <domain> -K <K%> -L <L%> -S <seed> -p <directory>
+  ./sortedness_workload_generator -N <#. entries to generate> -K <K%> -L <L%> -S <seed> -o <directory> -a <alpha> -b <beta> -P <payload_size_in_bytes>
   ```
 
 For example, a sample ingestion workload to create 1M entries with K=L=100,000 (10% of 1M entries) will look like: 
 ```c
-./sortedness_workload_generator -N 1000000 -D 1000000 -K 10 -L 10 -S 1 -p ./workloads
+./sortedness_workload_generator -N 1000000 -K 10 -L 10 -S 1 -o ./workloads -a 2.5 -b 2.9 -P 252
 ```
-Here, we used "1" as a seed value, 1M as the domain. We place this created workload in the "workloads/" directory. By default, this command will
-generate a binary file. 
+Here, we used "1" as a seed value, and alpha=2.5 while beta=2.9 for the sortedness distribution.  We place this created workload in the "workloads/" directory, and use a payload size of 252 Bytes. 
 
-To generate a txt file, simply use the "-txt" flag as an argument to the above command. 
+This will by default generate a csv file with the key in the first column and a randomly generated payload (string) in the second column.
 
 Note: You will need to create the directory to place the workload if it does not pre-exist. The workload generator will not create this directory automatically. 
