@@ -10,4 +10,6 @@ sample
 *.dat
 *.o
 
+.vscode/*
+
 work_gen_mod
