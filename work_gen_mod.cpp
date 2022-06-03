@@ -33,7 +33,6 @@ inline bool ledger_exists()
     return f.good();
 }
 
-
 void generate_one_file(unsigned long pTOTAL_NUMBERS, int k, int l, int pseed, std::string folder, std::string type, double alpha, double beta, int payload_size)
 {
     std::ofstream outfile;
@@ -171,7 +170,6 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
 
     std::srand(seed);
 
-
     unsigned long *array = new unsigned long[TOTAL_NUMBERS];
 
     std::string f1name = folder;
@@ -188,11 +186,8 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
 
     std::ofstream myfile1;
 
-
     f1name += ".txt";
     myfile1.open(f1name);
-
-
 
     unsigned long noise_limit = TOTAL_NUMBERS * p_outOfRange / 100.0;
     unsigned long l_absolute = TOTAL_NUMBERS * L / 100.0;
@@ -437,31 +432,83 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
     for (auto iter = left_out_sources.begin(); iter != left_out_sources.end();)
     {
         unsigned long position = *iter;
-        unsigned long start = position - l_absolute;
-        unsigned long end = position + l_absolute;
+        // unsigned long start = position - l_absolute;
+        // unsigned long end = position + l_absolute;
+        unsigned long start;
+        unsigned long end;
 
         bool found = false;
 
         // start position should usually be (position - l) and end should be (position + l)
         //  however, we need to check for edge cases
 
-        if (position - l_absolute < 0)
-        {
-            start = 0;
-        }
+        float ran = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
 
-        if (position + l_absolute > TOTAL_NUMBERS)
+        long forward_move_value = 1;
+        bool move_forward = true;
+
+        if (ran < 0.5)
         {
-            end = TOTAL_NUMBERS;
+            // we move from start to end
+            // if positon - l_absolute < 0
+            if (position < l_absolute)
+            {
+                start = 0;
+            }
+            else
+            {
+                start = position - l_absolute;
+            }
+
+            if (long(position + l_absolute) > TOTAL_NUMBERS)
+            {
+                end = TOTAL_NUMBERS - 1;
+            }
+            else
+            {
+                end = position + l_absolute;
+            }
+        }
+        else
+        {
+
+            // we move from end to start
+            // if positon - l_absolute < 0
+            if (position < l_absolute)
+            {
+                end = 0;
+            }
+            else
+            {
+                end = position - l_absolute;
+            }
+
+            if (long(position + l_absolute) > TOTAL_NUMBERS)
+            {
+                start = TOTAL_NUMBERS - 1;
+            }
+            else
+            {
+                start = position + l_absolute;
+            }
+
+            forward_move_value = -1;
+            move_forward = false;
         }
 
         // now, loop through from start to end
         // we will pick the first valid swap spot
-        for (unsigned long r = start; r < end; r++)
+        for (unsigned long r = start; r != end;)
         {
             if (r == position || swaps.find(r) != swaps.end() || myset.find(r) != myset.end())
             {
-
+                // stopping condition
+                if (r == end)
+                    break;
+                if (move_forward)
+                    r++;
+                else
+                    r--;
                 continue;
             }
             else
@@ -498,6 +545,14 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
                 // we can break out of the loop
                 break;
             }
+
+            // stopping condition
+            if (r == end)
+                break;
+            if (move_forward)
+                r++;
+            else
+                r--;
         }
         // manually increment iterator only if found is false
         // else, the erase operation would have automatically moved the iterator ahead
