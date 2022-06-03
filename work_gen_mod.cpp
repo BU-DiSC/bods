@@ -13,13 +13,14 @@
 #include <vector>
 #include <string>
 #include "args.hxx"
+#include "progressbar.hpp"
 
 using namespace boost::math;
 
 inline bool ledger_exists();
-void generate_one_file(unsigned long pTOTAL_NUMBERS, int k, int l, int pseed, std::string folder, std::string type, double alpha, double beta, int payload_size);
+void generate_one_file(unsigned long pTOTAL_NUMBERS, double k, int l, int pseed, std::string folder, std::string type, double alpha, double beta, int payload_size);
 unsigned int get_number_domain(unsigned long position, unsigned long total, unsigned long domain_);
-std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L, int seed, std::string folder, std::string type, double alpha, double beta, int payload_size);
+std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, double K, int L, int seed, std::string folder, std::string type, double alpha, double beta, int payload_size);
 
 std::string generateValue(int value_size)
 {
@@ -33,7 +34,7 @@ inline bool ledger_exists()
     return f.good();
 }
 
-void generate_one_file(unsigned long pTOTAL_NUMBERS, int k, int l, int pseed, std::string folder, std::string type, double alpha, double beta, int payload_size)
+void generate_one_file(unsigned long pTOTAL_NUMBERS, double k, int l, int pseed, std::string folder, std::string type, double alpha, double beta, int payload_size)
 {
     std::ofstream outfile;
 
@@ -163,10 +164,10 @@ double findMedian(std::vector<long> a,
     Each partition of L elements is shuffled, and has some noise (randomness) linked to the
     percent_outRange parameter.
     */
-std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L, int seed, std::string folder = "./Data", std::string type = "bin", double alpha = 1.0, double beta = 1.0, int payload_size = 252)
+std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, double K, int L, int seed, std::string folder = "./Data", std::string type = "bin", double alpha = 1.0, double beta = 1.0, int payload_size = 252)
 {
 
-    float p_outOfRange = K;
+    double p_outOfRange = K;
 
     std::srand(seed);
 
@@ -212,6 +213,11 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
         array[i] = i;
     }
 
+    std::cout << "Generating sources: ";
+    progressbar bar(noise_limit);
+    bar.set_todo_char(" ");
+    bar.set_done_char("█");
+
     // generate noise_limit number of unique random numbers
     int ctr = 0;
     // std::vector<unsigned int> ks;
@@ -236,21 +242,39 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
             }
             // ks.push_back(i);
             ctr++;
+            bar.update();
         }
     }
 
-    std::cout << "No. of sources generated for swaps = " << ctr << std::endl;
+    std::cout << "\nNo. of sources generated for swaps = " << ctr << std::endl;
 
     // first, we want to ensure that the max displacement is L
     // this means at least one swap has to happen by L positions
     unsigned long generated_source;
-    for (auto iterator = myset.begin(); iterator != myset.end(); iterator++)
+    int num_tries_for_max_displacement = 10;
+    int tries_ctr = 0;
+    bool generated_with_max_displacement = false;
+    for (auto iterator = myset.begin(); iterator != myset.end(), tries_ctr <= num_tries_for_max_displacement; iterator++)
     {
         unsigned long i = *iterator;
         unsigned long r = i + l_absolute;
 
         if (r > TOTAL_NUMBERS)
+        {
             r = i - l_absolute;
+
+            // check if this becomes a problem on the other side
+            if (i < l_absolute)
+            {
+                // now, we have a problem
+                // r would have been set to something garbage
+
+                // since we have now found out that going forward and backward is creating problems,
+                // we continue; however, we control this
+                tries_ctr++;
+                continue;
+            }
+        }
 
         // std::cout << "r = " << r << std::endl;
 
@@ -261,10 +285,10 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
             continue;
         }
         swaps.insert(r);
-        if (r == 0)
-        {
-            std::cout << "swap 0 (1)" << std::endl;
-        }
+        // if (r == 0)
+        // {
+        //     std::cout << "swap 0 (1)" << std::endl;
+        // }
         // max_l = r - i;
         if (abs(int(r - i)) < min_l)
             min_l = abs(int(r - i));
@@ -280,12 +304,19 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
         generated_source = i;
 
         l_values.push_back(r - i);
+        generated_with_max_displacement = true;
 
         break;
     }
 
-    std::cout << "We now have at least one element with L displacement..." << std::endl;
+    if (generated_with_max_displacement)
+        std::cout << "We now have at least one element with L displacement..." << std::endl;
 
+    std::cout << "Now start with swapping\t";
+
+    progressbar bar_swaps(myset.size());
+    bar_swaps.set_todo_char(" ");
+    bar_swaps.set_done_char("█");
     // since the first source has already been taken care of, simply start from the next
     auto itr = myset.begin();
 
@@ -298,7 +329,7 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
         if (generated_source == i)
             continue;
         // std::cout << i << " ";
-        int num_tries = 4;
+        int num_tries = 128;
         while (num_tries > 0)
         {
             // r = generate_random_in_range(i, TOTAL_NUMBERS, l_absolute);
@@ -307,7 +338,8 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
 
             // check for cascading swaps, i.e. we should not pick a spot again to swap
             // also we should not pick one of our already defined source places
-            if ((r == i) || swaps.find(r) != swaps.end() || myset.find(r) != myset.end())
+            // if ((r == i) || swaps.find(r) != swaps.end() || myset.find(r) != myset.end())
+            if (((L == 100) && (r == i)) || ((L != 100) && ((r == i) || swaps.find(r) != swaps.end() || myset.find(r) != myset.end())))
             {
                 // if we ran out of tries
                 if (num_tries == 0)
@@ -323,25 +355,25 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
                 // std::cout << "found swap" << std::endl;
                 swaps.insert(r);
 
-                if (r == 0)
-                {
-                    std::cout << "swap 0 (2)" << std::endl;
-                }
+                // if (r == 0)
+                // {
+                //     std::cout << "swap 0 (2)" << std::endl;
+                // }
 
-                if (r == i)
-                {
-                    std::cout << "same place" << std::endl;
-                }
+                // if (r == i)
+                // {
+                //     std::cout << "same place" << std::endl;
+                // }
 
                 if (abs(int(r - i)) < min_l)
                     min_l = abs(int(r - i));
                 else if (abs(int(r - i)) > max_l)
                     max_l = abs(int(r - i));
 
-                if (array[i] == 0 || array[r] == 0)
-                {
-                    std::cout << "here (1)" << std::endl;
-                }
+                // if (array[i] == 0 || array[r] == 0)
+                // {
+                //     std::cout << "here (1)" << std::endl;
+                // }
                 unsigned long temp = array[i];
                 array[i] = array[r];
                 array[r] = temp;
@@ -352,14 +384,19 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
                 break;
             }
         }
+
+        bar_swaps.update();
         if (noise_counter == noise_limit)
             break;
 
         // std::cout << noise_counter << std::endl;
     }
 
-    std::cout << "Left out sources = " << left_out_sources.size() << std::endl;
-
+    std::cout << "\nLeft out sources = " << left_out_sources.size() << std::endl;
+    progressbar bar_leftout(left_out_sources.size());
+    bar_leftout.set_todo_char(" ");
+    bar_leftout.set_done_char("█");
+    std::cout << "Now re-drawing for left out with increased tries\t";
     // we potentially have left out sources
     // loop through them again and try another set of random jumps
     for (auto it = left_out_sources.begin(); it != left_out_sources.end();)
@@ -367,7 +404,7 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
         unsigned long r;
         unsigned long i = *it;
 
-        int num_tries = 16;
+        int num_tries = 512;
         bool found = false;
         while (num_tries > 0)
         {
@@ -376,7 +413,8 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
             num_tries--;
             // check for cascading swaps, i.e. we should not pick a spot again to swap
             // also we should not pick one of our already defined source places
-            if ((r == i) || swaps.find(r) != swaps.end() || myset.find(r) != myset.end())
+            // if ((r == i) || swaps.find(r) != swaps.end() || myset.find(r) != myset.end())
+            if (((L == 100) && (r == i)) || ((L != 100) && ((r == i) || swaps.find(r) != swaps.end() || myset.find(r) != myset.end())))
             {
                 // if we run out of tries, we keep the element in the left_out_sources
                 continue;
@@ -386,20 +424,20 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
                 // if we found an eligible swap
                 swaps.insert(r);
 
-                if (r == 0)
-                {
-                    std::cout << "swap 0 (3)" << std::endl;
-                }
+                // if (r == 0)
+                // {
+                //     std::cout << "swap 0 (3)" << std::endl;
+                // }
 
                 if (abs(int(r - i)) < min_l)
                     min_l = abs(int(r - i));
                 else if (abs(int(r - i)) > max_l)
                     max_l = abs(int(r - i));
 
-                if (array[i] == 0 || array[r] == 0)
-                {
-                    std::cout << "here (2)" << std::endl;
-                }
+                // if (array[i] == 0 || array[r] == 0)
+                // {
+                //     std::cout << "here (2)" << std::endl;
+                // }
 
                 unsigned long temp = array[i];
                 array[i] = array[r];
@@ -414,6 +452,7 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
                 l_values.push_back(abs(int(r - i)));
 
                 // we can break out of the loop
+                bar_leftout.update();
                 break;
             }
         }
@@ -423,10 +462,18 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
         if (!found)
         {
             ++it;
+            bar_leftout.update();
         }
+
+        
     }
 
-    std::cout << "Left out sources after increased jumps = " << left_out_sources.size() << std::endl;
+    std::cout << "\nLeft out sources after increased jumps = " << left_out_sources.size() << std::endl;
+
+    std::cout<<"Now trying Brute force\t";
+    progressbar bar_brute(left_out_sources.size());
+    bar_brute.set_todo_char(" ");
+    bar_brute.set_done_char("█");
 
     // now let us give one final try with brute force
     for (auto iter = left_out_sources.begin(); iter != left_out_sources.end();)
@@ -500,7 +547,8 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
         // we will pick the first valid swap spot
         for (unsigned long r = start; r != end;)
         {
-            if (r == position || swaps.find(r) != swaps.end() || myset.find(r) != myset.end())
+            // if (r == position || swaps.find(r) != swaps.end() || myset.find(r) != myset.end())
+            if (((L == 100) && (r == position)) || ((L != 100) && ((r == position) || swaps.find(r) != swaps.end() || myset.find(r) != myset.end())))
             {
                 // stopping condition
                 if (r == end)
@@ -515,20 +563,20 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
             {
                 // if we found an eligible swap
                 swaps.insert(r);
-                if (r == 0)
-                {
-                    std::cout << "swap 0 (4)" << std::endl;
-                }
+                // if (r == 0)
+                // {
+                //     std::cout << "swap 0 (4)" << std::endl;
+                // }
 
                 if (abs(int(r - position)) < min_l)
                     min_l = abs(int(r - position));
                 else if (abs(int(r - position)) > max_l)
                     max_l = abs(int(r - position));
 
-                if (array[position] == 0 || array[r] == 0)
-                {
-                    std::cout << "here (3)" << std::endl;
-                }
+                // if (array[position] == 0 || array[r] == 0)
+                // {
+                //     std::cout << "here (3)" << std::endl;
+                // }
 
                 unsigned long temp = array[position];
                 array[position] = array[r];
@@ -541,6 +589,7 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
                 found = true;
 
                 l_values.push_back(abs(int(r - position)));
+                bar_brute.update();
 
                 // we can break out of the loop
                 break;
@@ -558,6 +607,7 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
         // else, the erase operation would have automatically moved the iterator ahead
         if (!found)
         {
+            bar_brute.update();
             ++iter;
         }
     }
@@ -634,10 +684,10 @@ int main(int argc, char **argv)
         parser.ParseCLI(argc, argv);
         unsigned long totalNumbers = args::get(total_numbers_cmd);
         // unsigned long domain = args::get(domain_cmd);
-        int K = args::get(k_cmd);
+        int k = args::get(k_cmd);
 
         // fix K for new definition
-        K = K / 2;
+        double K = k / 2.0;
 
         // since we are using rand() function, we only have to take l as an int
         int L = args::get(l_cmd);
