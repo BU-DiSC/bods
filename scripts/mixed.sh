@@ -1,7 +1,5 @@
 #!/bin/bash
 
-coinflip() { return $(($RANDOM % 2)); }
-
 INPUT_FILE_NAME=$1
 NUM_LOAD=$2
 NUM_QUERIES=$3
