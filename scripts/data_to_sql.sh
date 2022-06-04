@@ -1,13 +1,5 @@
 #!/bin/bash
 
-func_insert_only() {
-
-    while IFS=, read -r field1 field2; do
-        # echo "$field1 and $field2"
-        printf "INSERT INTO TABLE1 VALUES (${field1}, \"${field2}\");\n" >>$2
-    done <$1
-}
-
 INPUT_FILE_NAME=$1
 LOAD="load"
 OPERATIONS="operations"
@@ -27,13 +19,18 @@ WORKLOAD_OPT=$2
 case $WORKLOAD_OPT in
 1)
     printf "Workload Option 1: Fully Bulkload Data\n"
-    # write copy command here
-    echo "${OPERATIONS}${EXT}"
+    # call dedicated script
     ;;
 
 2)
-    printf "Workload Option 2: One-by-one Insert Only"
-    func_insert_only $INPUT_FILE_NAME ${OPERATIONS}${EXT}
+    printf "Workload Option 2: One-by-one Insert Only\n"
+    # call dedicated script
+    ./insert_only_workload.sh $INPUT_FILE_NAME ${OPERATIONS}${EXT}
+    ;;
+
+3)
+    printf "Workload Option 3: Mixed workload with no pre-loading\n"
+    ./mixed_no_preload.sh $INPUT_FILE_NAME 100 100 $LOAD$EXT $OPERATIONS$EXT 
     ;;
 
 *) echo -n "wrong option" ;;
