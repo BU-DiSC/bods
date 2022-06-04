@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# arguments for this script
+# arg1: input_file_name or data file path
+# arg2: workload option
+# arg3: preload_threshold as percentage 
+# arg4: number of queries in mixed workload
+
 INPUT_FILE_NAME=$1
 LOAD="load"
 OPERATIONS="operations"
@@ -17,11 +23,11 @@ rm -rf $OPERATIONS$EXT
 WORKLOAD_OPT=$2
 
 # pre-load threshold as fraction
-PRELOAD_THRESH=80
+PRELOAD_THRESH=$3
 NUM_PRELOAD=$(($N * $PRELOAD_THRESH/100))
 printf "Num preload = ${NUM_PRELOAD}\n"
 
-NUM_QUERIES=100
+NUM_QUERIES=$4
 
 case $WORKLOAD_OPT in
 1)
