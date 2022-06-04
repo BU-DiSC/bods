@@ -13,41 +13,14 @@
 #include <vector>
 #include <string>
 #include "args.hxx"
+#include "progressbar.hpp"
 
 using namespace boost::math;
 
 inline bool ledger_exists();
-void generate_one_file(unsigned long pTOTAL_NUMBERS, int k, int l, int pseed, std::string folder, std::string type, double alpha, double beta, int payload_size);
+void generate_one_file(unsigned long pTOTAL_NUMBERS, double k, int l, int pseed, std::string folder, std::string type, double alpha, double beta, int payload_size);
 unsigned int get_number_domain(unsigned long position, unsigned long total, unsigned long domain_);
-std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L, int seed, std::string folder, std::string type, double alpha, double beta, int payload_size);
-
-inline void showProgress(const long &n, const long &count);
-inline void showProgress(const long &workload_size, const long &counter)
-{
-    // std::cout << “flag = ” << flag << std::endl;
-    // std::cout<<“2----“;
-    if (counter / (workload_size / 100) >= 1)
-    {
-        for (int i = 0; i < 104; i++)
-        {
-            std::cout << "\b";
-            fflush(stdout);
-        }
-    }
-    for (int i = 0; i < counter / (workload_size / 100); i++)
-    {
-        std::cout << "=";
-        fflush(stdout);
-    }
-    std::cout << std::setfill(' ') << std::setw(101 - counter / (workload_size / 100));
-    std::cout << counter * 100 / workload_size << "%";
-    fflush(stdout);
-    if (counter == workload_size)
-    {
-        std::cout << "\n";
-        return;
-    }
-}
+std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, double K, int L, int seed, std::string folder, std::string type, double alpha, double beta, int payload_size);
 
 std::string generateValue(int value_size)
 {
@@ -61,48 +34,17 @@ inline bool ledger_exists()
     return f.good();
 }
 
-int sample_beta()
-{
-    double alpha = 2, beta = 3;
-    unsigned seed = std::chrono::steady_clock::now().time_since_epoch().count();
-    std::default_random_engine e(seed);
-
-    std::uniform_real_distribution<double> distr(0, 1);
-    // double randFromUnif = distr(e);
-
-    double randFromUnif = ((double)rand() / (RAND_MAX));
-
-    beta_distribution<> dist(alpha, beta);
-    double randFromDist = quantile(dist, randFromUnif);
-
-    std::cout << "distr = " << randFromDist << "\t";
-
-    int m = -100;
-    int M = 100;
-
-    int y = m + (M - m) * randFromDist;
-
-    std::cout << "conv = " << y << std::endl;
-
-    return randFromDist;
-}
-
-void generate_one_file(unsigned long pTOTAL_NUMBERS, int k, int l, int pseed, std::string folder, std::string type, double alpha, double beta, int payload_size)
+void generate_one_file(unsigned long pTOTAL_NUMBERS, double k, int l, int pseed, std::string folder, std::string type, double alpha, double beta, int payload_size)
 {
     std::ofstream outfile;
 
     srand(time(NULL));
     outfile.open("dataledger.txt", std::ios_base::app);
 
-    // std::string folder_name = "mixed_workload/";
     std::string folder_name = "./";
-    // std::string folder_name = "vary_buffer_workload/";
-    //    std::string folder_name = "sorting_workload/";
+
     outfile << generate_partitions_stream(pTOTAL_NUMBERS, k, l, pseed, folder, type, alpha, beta, payload_size) << std::endl;
-    // for (int i = 0; i < 10; i++)
-    // {
-    //     sample_beta();
-    // }
+
     outfile.close();
 }
 
@@ -171,122 +113,11 @@ unsigned long generate_beta_random_in_range(long position, unsigned long Total_N
         std::cout << "ret more = " << ret << std::endl;
         exit(0);
     }
-
+    assert(ret >= 0 && ret < Total_Numbers);
     return ret;
 }
 
-unsigned long generate_random_in_range(unsigned long position, unsigned long Total_Numbers, int L)
-{
-    int l = L;
-
-    long ret;
-
-    uint min_jump = 1;
-    uint max_jump = l;
-    // std::cout << "Max jump possible = " << max_jump << std::endl;
-
-    // a jump can be only of l windowSizeaces
-    // int jump = rand() % (max_jump) + min_jump;
-    unsigned seed = std::chrono::steady_clock::now().time_since_epoch().count();
-    std::default_random_engine e(seed);
-    std::uniform_int_distribution<unsigned long> distr(min_jump, max_jump); // this is inclusive on both ends
-    unsigned long jump = distr(e);
-
-    // now lets do a small check. If both jumping forward and backward is invalid,
-    // we need to reconfigure the jump to the max limit.
-    // note, if position < jump, position-jump < 0
-    if ((position + jump) >= Total_Numbers && (position <= jump))
-    {
-        // we can pick both ends now to determine the max jump
-        // lets do a coin toss
-        float p = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
-        if (p < 0.5)
-        {
-            // max jump configured upto position
-            max_jump = position - 1;
-        }
-        else
-        {
-            max_jump = Total_Numbers - (position - 1) - 1;
-        }
-
-        // redo jump
-        jump = rand() % (max_jump) + min_jump;
-    }
-
-    if (position <= l && ((position + jump) <= Total_Numbers))
-    {
-        // ret=rand() % position+l;
-        // return ((unsigned long)rand() % position+l);
-
-        // we can only jump forward
-        ret = position + jump;
-        if (ret < 0)
-        {
-            std::cout << "oops (negative index)" << std::endl;
-            std::cout << "jump = " << jump << "; ret = " << ret << "; position = " << position << std::endl;
-        }
-        if (ret > Total_Numbers)
-        {
-            std::cout << "oops overboard" << std::endl;
-        }
-    }
-    else if ((unsigned long)(position + l) >= Total_Numbers)
-    {
-        // ret = rand() % (Total_Numbers - (position - l)) + (position - l);
-        // return ((unsigned long)rand() % (Total_Numbers - (position - l))) + (position - l);
-
-        // we can only jump backward
-        ret = position - jump;
-        if (ret < 0)
-        {
-            std::cout << "oops (negative index)" << std::endl;
-            std::cout << "jump = " << jump << "; ret = " << ret << "; position = " << position << std::endl;
-        }
-        if (ret > Total_Numbers)
-        {
-            std::cout << "oops overboard" << std::endl;
-        }
-    }
-    else
-    {
-        // ret = rand() % ((position + l) - (position - l)) + (position - l);
-        // return ((unsigned long)rand() % ((position + l) - (position - l))) + (position - l);
-
-        // we can jump forward or backward
-        // let's toss a coin to find out what to do
-        float p = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
-        // we move backwards with p < 0.5
-        if (p < 0.5)
-            ret = position - jump;
-        else
-            ret = position + jump;
-
-        if (ret < 0)
-        {
-            std::cout << "oops (negative index)" << std::endl;
-            std::cout << "jump = " << jump << "; ret = " << ret << "; position = " << position << std::endl;
-        }
-        if (ret > Total_Numbers)
-        {
-            std::cout << "oops overboard" << std::endl;
-        }
-    }
-    if (ret < 0)
-    {
-        std::cout << "oops (negative index)" << std::endl;
-        std::cout << "jump = " << jump << "; ret = " << ret << "; position = " << position << std::endl;
-    }
-
-    if (ret > Total_Numbers)
-    {
-        std::cout << "oops overboard" << std::endl;
-    }
-
-    return (unsigned long)ret;
-}
-
-// code inspired from GeekForGeeks
+// this function code from GeekForGeeks
 double findMedian(std::vector<long> a,
                   int n)
 {
@@ -333,15 +164,13 @@ double findMedian(std::vector<long> a,
     Each partition of L elements is shuffled, and has some noise (randomness) linked to the
     percent_outRange parameter.
     */
-std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L, int seed, std::string folder = "./Data", std::string type = "bin", double alpha = 1.0, double beta = 1.0, int payload_size = 252)
+std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, double K, int L, int seed, std::string folder = "./Data", std::string type = "bin", double alpha = 1.0, double beta = 1.0, int payload_size = 252)
 {
-    // float p_outOfRange = (double)K / TOTAL_NUMBERS;
-    float p_outOfRange = K;
+
+    double p_outOfRange = K;
 
     std::srand(seed);
 
-    // unsigned long array[TOTAL_NUMBERS];
-    //  std::vector<unsigned long> array(TOTAL_NUMBERS, 0);
     unsigned long *array = new unsigned long[TOTAL_NUMBERS];
 
     std::string f1name = folder;
@@ -357,30 +186,13 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
     f1name += std::to_string(std::time(nullptr));
 
     std::ofstream myfile1;
-    // f1name += ".dat";
-    // if (type.compare("txt") == 0)
-    // {
-    //     f1name += ".txt";
-    //     myfile1.open(f1name);
-    // }
-
-    // else
-    // {
-    //     f1name += ".dat";
-    //     myfile1.open(f1name, std::ios::binary);
-    // }
 
     f1name += ".txt";
     myfile1.open(f1name);
 
-    // std::ofstream myfile(fname, std::ios::binary);
-
-    // if (type.compare("txt") == 0)
-    //     myfile1(f1name);
-
     unsigned long noise_limit = TOTAL_NUMBERS * p_outOfRange / 100.0;
     unsigned long l_absolute = TOTAL_NUMBERS * L / 100.0;
-    // assert(noise_limit == K);
+
     unsigned long noise_counter = 0;
 
     std::unordered_set<unsigned long> myset;
@@ -388,7 +200,7 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
     std::unordered_set<unsigned long> left_out_sources;
     unsigned long w = 0;
     unsigned long windowSize = 1;
-    // std::cout << "pOut = " << p_outOfRange << std::endl;
+
     std::cout << "L% = " << L << std::endl;
     std::cout << "L absolute = " << l_absolute << std::endl;
     std::cout << "No. of Required Swaps = " << noise_limit << std::endl;
@@ -398,8 +210,13 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
 
     for (unsigned long i = 0; i < TOTAL_NUMBERS; i++, w += windowSize)
     {
-        array[i] = w;
+        array[i] = i;
     }
+
+    std::cout << "Generating sources: ";
+    progressbar bar(noise_limit);
+    bar.set_todo_char(" ");
+    bar.set_done_char("█");
 
     // generate noise_limit number of unique random numbers
     int ctr = 0;
@@ -409,7 +226,7 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
         unsigned seed = std::chrono::steady_clock::now().time_since_epoch().count();
         std::default_random_engine e(seed);
 
-        std::uniform_int_distribution<unsigned long> distr(1, TOTAL_NUMBERS - 1);
+        std::uniform_int_distribution<unsigned long> distr(0, TOTAL_NUMBERS - 1);
         unsigned long i = distr(e);
 
         if (myset.find(i) != myset.end())
@@ -425,17 +242,39 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
             }
             // ks.push_back(i);
             ctr++;
+            bar.update();
         }
     }
 
-    std::cout << "No. of sources generated for swaps = " << ctr << std::endl;
+    std::cout << "\nNo. of sources generated for swaps = " << ctr << std::endl;
 
     // first, we want to ensure that the max displacement is L
     // this means at least one swap has to happen by L positions
-    for (auto itr = myset.begin(); itr != myset.end(); itr++)
+    unsigned long generated_source;
+    int num_tries_for_max_displacement = 10;
+    int tries_ctr = 0;
+    bool generated_with_max_displacement = false;
+    for (auto iterator = myset.begin(); iterator != myset.end(), tries_ctr <= num_tries_for_max_displacement; iterator++)
     {
-        unsigned long i = *itr;
+        unsigned long i = *iterator;
         unsigned long r = i + l_absolute;
+
+        if (r > TOTAL_NUMBERS)
+        {
+            r = i - l_absolute;
+
+            // check if this becomes a problem on the other side
+            if (i < l_absolute)
+            {
+                // now, we have a problem
+                // r would have been set to something garbage
+
+                // since we have now found out that going forward and backward is creating problems,
+                // we continue; however, we control this
+                tries_ctr++;
+                continue;
+            }
+        }
 
         // std::cout << "r = " << r << std::endl;
 
@@ -446,6 +285,10 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
             continue;
         }
         swaps.insert(r);
+        // if (r == 0)
+        // {
+        //     std::cout << "swap 0 (1)" << std::endl;
+        // }
         // max_l = r - i;
         if (abs(int(r - i)) < min_l)
             min_l = abs(int(r - i));
@@ -458,23 +301,35 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
 
         noise_counter++;
 
+        generated_source = i;
+
         l_values.push_back(r - i);
+        generated_with_max_displacement = true;
 
         break;
     }
 
-    std::cout << "We now have at least one element with L displacement..." << std::endl;
+    if (generated_with_max_displacement)
+        std::cout << "We now have at least one element with L displacement..." << std::endl;
 
+    std::cout << "Now start with swapping\t";
+
+    progressbar bar_swaps(myset.size());
+    bar_swaps.set_todo_char(" ");
+    bar_swaps.set_done_char("█");
     // since the first source has already been taken care of, simply start from the next
     auto itr = myset.begin();
-    ++itr;
-    // now, loop through the sources values
+
     for (; itr != myset.end(); itr++)
     {
         unsigned long r;
         unsigned long i = *itr;
+
+        // check if this position is already the first generated source
+        if (generated_source == i)
+            continue;
         // std::cout << i << " ";
-        int num_tries = 4;
+        int num_tries = 128;
         while (num_tries > 0)
         {
             // r = generate_random_in_range(i, TOTAL_NUMBERS, l_absolute);
@@ -483,7 +338,8 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
 
             // check for cascading swaps, i.e. we should not pick a spot again to swap
             // also we should not pick one of our already defined source places
-            if ((r == i) || swaps.find(r) != swaps.end() && myset.find(r) != myset.end())
+            // if ((r == i) || swaps.find(r) != swaps.end() || myset.find(r) != myset.end())
+            if (((L == 100) && (r == i)) || ((L != 100) && ((r == i) || swaps.find(r) != swaps.end() || myset.find(r) != myset.end())))
             {
                 // if we ran out of tries
                 if (num_tries == 0)
@@ -499,16 +355,25 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
                 // std::cout << "found swap" << std::endl;
                 swaps.insert(r);
 
-                if (r == i)
-                {
-                    std::cout << "same place" << std::endl;
-                }
+                // if (r == 0)
+                // {
+                //     std::cout << "swap 0 (2)" << std::endl;
+                // }
+
+                // if (r == i)
+                // {
+                //     std::cout << "same place" << std::endl;
+                // }
 
                 if (abs(int(r - i)) < min_l)
                     min_l = abs(int(r - i));
                 else if (abs(int(r - i)) > max_l)
                     max_l = abs(int(r - i));
 
+                // if (array[i] == 0 || array[r] == 0)
+                // {
+                //     std::cout << "here (1)" << std::endl;
+                // }
                 unsigned long temp = array[i];
                 array[i] = array[r];
                 array[r] = temp;
@@ -519,14 +384,19 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
                 break;
             }
         }
+
+        bar_swaps.update();
         if (noise_counter == noise_limit)
             break;
 
         // std::cout << noise_counter << std::endl;
     }
 
-    std::cout << "Left out sources = " << left_out_sources.size() << std::endl;
-
+    std::cout << "\nLeft out sources = " << left_out_sources.size() << std::endl;
+    progressbar bar_leftout(left_out_sources.size());
+    bar_leftout.set_todo_char(" ");
+    bar_leftout.set_done_char("█");
+    std::cout << "Now re-drawing for left out with increased tries\t";
     // we potentially have left out sources
     // loop through them again and try another set of random jumps
     for (auto it = left_out_sources.begin(); it != left_out_sources.end();)
@@ -534,7 +404,7 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
         unsigned long r;
         unsigned long i = *it;
 
-        int num_tries = 16;
+        int num_tries = 512;
         bool found = false;
         while (num_tries > 0)
         {
@@ -543,7 +413,8 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
             num_tries--;
             // check for cascading swaps, i.e. we should not pick a spot again to swap
             // also we should not pick one of our already defined source places
-            if ((r == i) || swaps.find(r) != swaps.end() && myset.find(r) != myset.end())
+            // if ((r == i) || swaps.find(r) != swaps.end() || myset.find(r) != myset.end())
+            if (((L == 100) && (r == i)) || ((L != 100) && ((r == i) || swaps.find(r) != swaps.end() || myset.find(r) != myset.end())))
             {
                 // if we run out of tries, we keep the element in the left_out_sources
                 continue;
@@ -553,10 +424,20 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
                 // if we found an eligible swap
                 swaps.insert(r);
 
+                // if (r == 0)
+                // {
+                //     std::cout << "swap 0 (3)" << std::endl;
+                // }
+
                 if (abs(int(r - i)) < min_l)
                     min_l = abs(int(r - i));
                 else if (abs(int(r - i)) > max_l)
                     max_l = abs(int(r - i));
+
+                // if (array[i] == 0 || array[r] == 0)
+                // {
+                //     std::cout << "here (2)" << std::endl;
+                // }
 
                 unsigned long temp = array[i];
                 array[i] = array[r];
@@ -571,6 +452,7 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
                 l_values.push_back(abs(int(r - i)));
 
                 // we can break out of the loop
+                bar_leftout.update();
                 break;
             }
         }
@@ -580,51 +462,121 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
         if (!found)
         {
             ++it;
+            bar_leftout.update();
         }
+
+        
     }
 
-    std::cout << "Left out sources after increased jumps = " << left_out_sources.size() << std::endl;
+    std::cout << "\nLeft out sources after increased jumps = " << left_out_sources.size() << std::endl;
+
+    std::cout<<"Now trying Brute force\t";
+    progressbar bar_brute(left_out_sources.size());
+    bar_brute.set_todo_char(" ");
+    bar_brute.set_done_char("█");
 
     // now let us give one final try with brute force
-    for (auto it = left_out_sources.begin(); it != left_out_sources.end();)
+    for (auto iter = left_out_sources.begin(); iter != left_out_sources.end();)
     {
-        unsigned long position = *it;
-        unsigned long start = position - l_absolute;
-        unsigned long end = position + l_absolute;
+        unsigned long position = *iter;
+        // unsigned long start = position - l_absolute;
+        // unsigned long end = position + l_absolute;
+        unsigned long start;
+        unsigned long end;
 
         bool found = false;
 
         // start position should usually be (position - l) and end should be (position + l)
         //  however, we need to check for edge cases
 
-        if (position - l_absolute < 0)
-        {
-            start = 0;
-        }
+        float ran = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
 
-        if (position + l_absolute > TOTAL_NUMBERS)
+        long forward_move_value = 1;
+        bool move_forward = true;
+
+        if (ran < 0.5)
         {
-            end = TOTAL_NUMBERS;
+            // we move from start to end
+            // if positon - l_absolute < 0
+            if (position < l_absolute)
+            {
+                start = 0;
+            }
+            else
+            {
+                start = position - l_absolute;
+            }
+
+            if (long(position + l_absolute) > TOTAL_NUMBERS)
+            {
+                end = TOTAL_NUMBERS - 1;
+            }
+            else
+            {
+                end = position + l_absolute;
+            }
+        }
+        else
+        {
+
+            // we move from end to start
+            // if positon - l_absolute < 0
+            if (position < l_absolute)
+            {
+                end = 0;
+            }
+            else
+            {
+                end = position - l_absolute;
+            }
+
+            if (long(position + l_absolute) > TOTAL_NUMBERS)
+            {
+                start = TOTAL_NUMBERS - 1;
+            }
+            else
+            {
+                start = position + l_absolute;
+            }
+
+            forward_move_value = -1;
+            move_forward = false;
         }
 
         // now, loop through from start to end
         // we will pick the first valid swap spot
-        for (unsigned long r = start; r < end; r++)
+        for (unsigned long r = start; r != end;)
         {
-            if (swaps.find(r) != swaps.end() && myset.find(r) != myset.end())
+            // if (r == position || swaps.find(r) != swaps.end() || myset.find(r) != myset.end())
+            if (((L == 100) && (r == position)) || ((L != 100) && ((r == position) || swaps.find(r) != swaps.end() || myset.find(r) != myset.end())))
             {
-
+                // stopping condition
+                if (r == end)
+                    break;
+                if (move_forward)
+                    r++;
+                else
+                    r--;
                 continue;
             }
             else
             {
                 // if we found an eligible swap
                 swaps.insert(r);
+                // if (r == 0)
+                // {
+                //     std::cout << "swap 0 (4)" << std::endl;
+                // }
 
                 if (abs(int(r - position)) < min_l)
                     min_l = abs(int(r - position));
                 else if (abs(int(r - position)) > max_l)
                     max_l = abs(int(r - position));
+
+                // if (array[position] == 0 || array[r] == 0)
+                // {
+                //     std::cout << "here (3)" << std::endl;
+                // }
 
                 unsigned long temp = array[position];
                 array[position] = array[r];
@@ -633,20 +585,30 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
                 noise_counter++;
 
                 // remove the current source from left out sources
-                it = left_out_sources.erase(it);
+                iter = left_out_sources.erase(iter);
                 found = true;
 
                 l_values.push_back(abs(int(r - position)));
+                bar_brute.update();
 
                 // we can break out of the loop
                 break;
             }
+
+            // stopping condition
+            if (r == end)
+                break;
+            if (move_forward)
+                r++;
+            else
+                r--;
         }
         // manually increment iterator only if found is false
         // else, the erase operation would have automatically moved the iterator ahead
         if (!found)
         {
-            ++it;
+            bar_brute.update();
+            ++iter;
         }
     }
 
@@ -659,28 +621,6 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, int K, int L
 
     double median_l = findMedian(l_values, l_values.size());
     std::cout << "Median L = " << median_l << std::endl;
-
-    // if (type.compare("txt") == 0)
-    // {
-    //     for (unsigned long j = 0; j < TOTAL_NUMBERS; ++j)
-    //     {
-    //         // auto pair = std::make_pair(array[j], array[j]);
-    //         // //myfile.write(reinterpret_cast<char *>(&pair), sizeof(std::pair<unsigned int, unsigned int>));
-    //         // myfile1.write(reinterpret_cast<char *>(&array[j]), sizeof(int));
-    //         myfile1 << array[j] << ",";
-    //     }
-    // }
-    // else
-    // {
-    //     for (unsigned long j = 0; j < TOTAL_NUMBERS; ++j)
-    //     {
-    //         // auto pair = std::make_pair(array[j], array[j]);
-    //         // myfile.write(reinterpret_cast<char *>(&pair), sizeof(std::pair<unsigned int, unsigned int>));
-    //         myfile1.write(reinterpret_cast<char *>(&array[j]), sizeof(unsigned long));
-    //         // std::cout<<array[j]<<std::endl;
-    //         // break;
-    //     }
-    // }
 
     for (unsigned long j = 0; j < TOTAL_NUMBERS; j++)
     {
@@ -744,10 +684,10 @@ int main(int argc, char **argv)
         parser.ParseCLI(argc, argv);
         unsigned long totalNumbers = args::get(total_numbers_cmd);
         // unsigned long domain = args::get(domain_cmd);
-        int K = args::get(k_cmd);
+        int k = args::get(k_cmd);
 
         // fix K for new definition
-        K = K / 2;
+        double K = k / 2.0;
 
         // since we are using rand() function, we only have to take l as an int
         int L = args::get(l_cmd);
