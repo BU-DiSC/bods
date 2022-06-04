@@ -30,7 +30,7 @@ case $WORKLOAD_OPT in
 
 3)
     printf "Workload Option 3: Mixed workload with no pre-loading\n"
-    ./mixed_no_preload.sh $INPUT_FILE_NAME 100 100 $LOAD$EXT $OPERATIONS$EXT 
+    ./mixed.sh $INPUT_FILE_NAME 100 100 $LOAD$EXT $OPERATIONS$EXT 
     ;;
 
 *) echo -n "wrong option" ;;

@@ -1,5 +1,7 @@
 #!/bin/bash
 
+coinflip() { return $(($RANDOM % 2)); }
+
 INPUT_FILE_NAME=$1
 NUM_LOAD=$2
 NUM_QUERIES=$3
@@ -13,7 +15,7 @@ while IFS=, read -r field1 field2; do
     # echo "$field1 and $field2"
     printf "INSERT INTO TABLE1 VALUES (${field1}, \"${field2}\");\n" >>$LOAD_OPS_FILE
     ((LOAD_CTR = LOAD_CTR + 1))
-    echo $LOAD_CTR
+    # echo $LOAD_CTR
     if [[ $LOAD_CTR -eq $NUM_LOAD ]]; then
         break
     fi
@@ -28,11 +30,13 @@ N=$(wc -l <${INPUT_FILE_NAME})
 
 LINE_NUM=$((LOAD_CTR + 1))
 while true; do
-    if [[ $TOT_INS < $N && $TOT_QRS < $NUM_QUERIES ]]; then
+    if [[ $TOT_INS -le $N && $TOT_QRS -lt $NUM_QUERIES ]]; then
         # P=$(echo "scale=4 ; ${RANDOM}/32767" | bc -l)
         # echo $P
-        FLIP=$((RANDOM%2))
-        echo "flip "
+        FLIP=$((RANDOM % 2))
+        # echo "flip "
+
+        # echo "flip${FLIP}, ${TOT_INS}, ${N}, ${TOT_QRS}, ${NUM_QUERIES}"
         #
         if [[ $FLIP -eq 1 ]]; then
             while IFS=, read -r field1 field2; do
@@ -40,17 +44,17 @@ while true; do
             done < <(sed -n ${LINE_NUM}p ${INPUT_FILE_NAME})
             LINE_NUM=$((LINE_NUM + 1))
             TOT_INS=$((TOT_INS + 1))
-            printf "flip heads\n"
+            # printf "flip heads\n"
         else
             QUERY_INDEX=$(((RANDOM % $N) + 1))
             printf "SELECT * FROM TABLE1 WHERE COL1=${QUERY_INDEX};\n" >>$OUTPUT_OPS_FILE
             TOT_QRS=$((TOT_QRS + 1))
-            printf "flip tails\n"
+            # printf "flip tails\n"
         fi
         OPS_CTR=$((OPS_CTR + 1))
 
-    elif [[ $TOT_INS < $N && $TOT_QRS -ge $NUM_QUERIES ]]; then
-        printf "done with queries"
+    elif [[ $TOT_INS -le $N && $TOT_QRS -ge $NUM_QUERIES ]]; then
+        # printf "done with queries"
         while IFS=, read -r field1 field2; do
             printf "INSERT INTO TABLE1 VALUES (${field1}, \"${field2}\");\n" >>$OUTPUT_OPS_FILE
         done < <(sed -n ${LINE_NUM}p ${INPUT_FILE_NAME})
@@ -59,7 +63,7 @@ while true; do
         OPS_CTR=$((OPS_CTR + 1))
 
     elif [[ $TOT_INS -ge $N && $TOT_QRS -le $NUM_QUERIES ]]; then
-        printf "done with inserts"
+        # printf "done with inserts"
         QUERY_INDEX=$(((RANDOM % $N) + 1))
         printf "SELECT * FROM TABLE1 WHERE COL1=${QUERY_INDEX};\n" >>$OUTPUT_OPS_FILE
         TOT_QRS=$((TOT_QRS + 1))
@@ -67,11 +71,12 @@ while true; do
     fi
 
     if [[ $TOT_INS -ge $N && $TOT_QRS -ge $NUM_QUERIES ]]; then
-        printf "reached limit"
+        # printf "reached limit"
         break
     fi
 done
 
+printf "Total number of Loads = ${LOAD_CTR}\n"
 printf "Total number of Inserts = ${TOT_INS}\n"
 printf "Total number of queries = ${TOT_QRS}\n"
 printf "Total number of operations = ${OPS_CTR}\n"
