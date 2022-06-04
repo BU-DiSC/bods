@@ -4,7 +4,7 @@ INPUT_FILE_NAME=$1
 LOAD="load"
 OPERATIONS="operations"
 EXT=".txt"
-
+N=$(wc -l <${INPUT_FILE_NAME})
 # first remove files if it exists so we don't mess up statements
 rm -rf $LOAD$EXT
 rm -rf $OPERATIONS$EXT
@@ -15,6 +15,13 @@ rm -rf $OPERATIONS$EXT
 # Mixed with pre-load as bulk load = 4
 # Mixed with pre-load as one by one insert = 5
 WORKLOAD_OPT=$2
+
+# pre-load threshold as fraction
+PRELOAD_THRESH=80
+NUM_PRELOAD=$(($N * $PRELOAD_THRESH/100))
+printf "Num preload = ${NUM_PRELOAD}\n"
+
+NUM_QUERIES=100
 
 case $WORKLOAD_OPT in
 1)
@@ -30,7 +37,19 @@ case $WORKLOAD_OPT in
 
 3)
     printf "Workload Option 3: Mixed workload with no pre-loading\n"
-    ./mixed.sh $INPUT_FILE_NAME 100 100 $LOAD$EXT $OPERATIONS$EXT 
+    # mixed.sh input_file_name num_load num_queries load_file operations_file
+    ./mixed.sh $INPUT_FILE_NAME 0 100 $LOAD$EXT $OPERATIONS$EXT
+    ;;
+
+4)
+    printf "Workload Option 4: Mixed with pre-loading using bulk load\n"
+    # script to be done yet
+    ;;
+
+5)
+    printf "Workload Option 5: Mixed with pre-loading using one-by-one inserts\n"
+    # mixed.sh input_file_name num_load num_queries load_file operations_file
+    ./mixed.sh $INPUT_FILE_NAME $NUM_PRELOAD $NUM_QUERIES $LOAD$EXT $OPERATIONS$EXT
     ;;
 
 *) echo -n "wrong option" ;;

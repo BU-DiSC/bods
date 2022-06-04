@@ -9,15 +9,17 @@ OUTPUT_OPS_FILE=$5
 LOAD_CTR=0
 OPS_CTR=0
 
-while IFS=, read -r field1 field2; do
-    # echo "$field1 and $field2"
-    printf "INSERT INTO TABLE1 VALUES (${field1}, \"${field2}\");\n" >>$LOAD_OPS_FILE
-    ((LOAD_CTR = LOAD_CTR + 1))
-    # echo $LOAD_CTR
-    if [[ $LOAD_CTR -eq $NUM_LOAD ]]; then
-        break
-    fi
-done <$INPUT_FILE_NAME
+if [[ $NUM_LOAD -gt 0 ]]; then
+    while IFS=, read -r field1 field2; do
+        # echo "$field1 and $field2"
+        printf "INSERT INTO TABLE1 VALUES (${field1}, \"${field2}\");\n" >>$LOAD_OPS_FILE
+        ((LOAD_CTR = LOAD_CTR + 1))
+        # echo $LOAD_CTR
+        if [[ $LOAD_CTR -ge $NUM_LOAD ]]; then
+            break
+        fi
+    done <$INPUT_FILE_NAME
+fi
 
 START_FROM_LINE=$((LOAD_CTR + 1))
 # now we will do mixed workload
