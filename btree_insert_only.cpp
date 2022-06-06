@@ -54,9 +54,7 @@ int main(int argc, char *argv[])
             // add to our data vector
             data.push_back(make_pair(key, row[1]));
         }
-        cout << "read " << data.size() << " rows from file" << endl;
         stx::btree<unsigned long, string> tree;
-        cout << "Now inserting data" << endl;
 
         auto start = std::chrono::high_resolution_clock::now();
 
@@ -67,12 +65,8 @@ int main(int argc, char *argv[])
 
         auto stop = std::chrono::high_resolution_clock::now();
         auto duration_sort = std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start).count();
-        cout << "Time taken for inserts = " << duration_sort << " nanoseconds" << endl;
+        cout << "Insertion time = " << duration_sort << endl;
         cout << "Inserted " << data.size() << " rows." << endl;
-        // for (int i = 0; i < data.size(); i++)
-        // {
-        //     cout << "Key = " << data[i].first << " : " << tree.exists(data[i].first)<<endl;
-        // }
     }
     catch (args::Help &)
     {
