@@ -43,7 +43,6 @@ int main(int argc, char *argv[])
         string file_contents = readFileIntoString(input_file);
         istringstream sstream(file_contents);
         string record;
-        int i = 0;
         while (std::getline(sstream, record))
         {
             row.clear();
@@ -64,6 +63,17 @@ int main(int argc, char *argv[])
         if (bulkload)
         {
             // bulkload tree here
+            auto start = std::chrono::high_resolution_clock::now();
+            if (num_load != 0)
+            {
+                auto end = data.begin() + num_load;
+
+                tree.bulk_load(data.begin(), end);
+            }
+            auto stop = std::chrono::high_resolution_clock::now();
+            auto duration_sort = std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start).count();
+            cout << "Pre-loading time = " << duration_sort << endl;
+            cout << "Pre-loaded using bulkload " << num_load << " rows." << endl;
         }
         else
         {
@@ -79,64 +89,70 @@ int main(int argc, char *argv[])
             auto duration_sort = std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start).count();
             cout << "Pre-loading time = " << duration_sort << endl;
             cout << "Pre-loaded " << num_load << " rows." << endl;
-
-            // now do mixed reads and writes
-            unsigned long tot_inserts = num_load, tot_queries = 0, num_oper = 0;
-            unsigned long i = num_load;
-            unsigned long n = data.size();
-            start = std::chrono::high_resolution_clock::now();
-            while (true)
+        }
+        // now do mixed reads and writes
+        unsigned long tot_inserts = num_load, tot_queries = 0, num_oper = 0;
+        unsigned long i = num_load;
+        unsigned long n = data.size();
+        auto start = std::chrono::high_resolution_clock::now();
+        int num_empt = 0;
+        while (true)
+        {
+            if (tot_inserts < n && tot_queries < num_queries)
             {
-                if (tot_inserts < n && tot_queries < num_queries)
-                {
-                    double p = (double)rand() / RAND_MAX;
-                    if (p < 0.5)
-                    {
-                        tree.insert(data[i].first, data[i].second);
-                        i++;
-                        tot_inserts++;
-                    }
-                    else
-                    {
-                        // pick a number between 1 and tot_inserts
-                        int query_index = (rand() % tot_inserts) + 1;
-                        bool res = tree.exists(query_index);
-                        tot_queries++;
-                    }
-                    num_oper++;
-                }
-                else if (tot_inserts < n && tot_queries >= num_queries)
+                double p = (double)rand() / RAND_MAX;
+                if (p < 0.5)
                 {
                     tree.insert(data[i].first, data[i].second);
                     i++;
                     tot_inserts++;
-                    num_oper++;
                 }
-                else if (tot_inserts >= n && tot_queries <= num_queries)
+                else
                 {
                     // pick a number between 1 and tot_inserts
                     int query_index = (rand() % tot_inserts) + 1;
                     bool res = tree.exists(query_index);
+                    if (!res)
+                        num_empt++;
                     tot_queries++;
-                    num_oper++;
                 }
-                if (tot_inserts >= n && tot_queries >= num_queries)
-                {
-                    break;
-                }
+                num_oper++;
             }
-
-            stop = std::chrono::high_resolution_clock::now();
-            auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start).count();
-
-            cout << "Time in nanoseconds for all operations = " << duration << endl;
-
-            cout << "Total Number of Loads = " << num_load << endl;
-            cout << "Total Number of inserts = " << tot_inserts << endl;
-            cout << "Total Number of queries = " << tot_queries << endl;
-            cout << "Total Number of operations = " << num_oper << endl;
+            else if (tot_inserts < n && tot_queries >= num_queries)
+            {
+                tree.insert(data[i].first, data[i].second);
+                i++;
+                tot_inserts++;
+                num_oper++;
+            }
+            else if (tot_inserts >= n && tot_queries <= num_queries)
+            {
+                // pick a number between 1 and tot_inserts
+                int query_index = (rand() % tot_inserts) + 1;
+                bool res = tree.exists(query_index);
+                if (!res)
+                    num_empt++;
+                tot_queries++;
+                num_oper++;
+            }
+            if (tot_inserts >= n && tot_queries >= num_queries)
+            {
+                break;
+            }
         }
+
+        auto stop = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start).count();
+
+        cout << "Time in nanoseconds for all operations = " << duration << endl;
+
+        cout << "Total Number of Loads = " << num_load << endl;
+        cout << "Total Number of inserts = " << tot_inserts << endl;
+        cout << "Total Number of queries = " << tot_queries << endl;
+        cout << "Total Number of operations = " << num_oper << endl;
+        cout << "num empt = " << num_empt << endl;
     }
+
     catch (args::Help &)
     {
         std::cout << parser;
