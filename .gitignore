@@ -13,3 +13,5 @@ sample
 .vscode/*
 
 work_gen_mod
+btree_mixed
+btree_insert_only
