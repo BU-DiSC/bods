@@ -1,26 +1,17 @@
 #include <fstream>
-#include <ctime>
 #include <algorithm>
 #include <vector>
 #include <iostream>
 #include <unordered_set>
 #include <random>
-#include <iomanip>
 #include <cassert>
-#include <chrono>
 #include <cmath>
 #include <boost/math/distributions.hpp>
-#include <vector>
 #include <string>
 #include "args.hxx"
 #include "progressbar.hpp"
 
 using namespace boost::math;
-
-inline bool ledger_exists();
-void generate_one_file(unsigned long pTOTAL_NUMBERS, double k, int l, int pseed, std::string folder, std::string type, double alpha, double beta, int payload_size);
-unsigned int get_number_domain(unsigned long position, unsigned long total, unsigned long domain_);
-std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, double K, int L, int seed, std::string folder, std::string type, double alpha, double beta, int payload_size);
 
 std::string generateValue(int value_size)
 {
@@ -28,39 +19,11 @@ std::string generateValue(int value_size)
     return value;
 }
 
-inline bool ledger_exists()
-{
-    std::ifstream f("dataledger.txt");
-    return f.good();
-}
-
-void generate_one_file(unsigned long pTOTAL_NUMBERS, double k, int l, int pseed, std::string folder, std::string type, double alpha, double beta, int payload_size)
-{
-    std::ofstream outfile;
-
-    srand(time(NULL));
-    outfile.open("dataledger.txt", std::ios_base::app);
-
-    std::string folder_name = "./";
-
-    outfile << generate_partitions_stream(pTOTAL_NUMBERS, k, l, pseed, folder, type, alpha, beta, payload_size) << std::endl;
-
-    outfile.close();
-}
-
-unsigned int get_number_domain(unsigned long position, unsigned long total, unsigned int domain_)
-{
-    return (position * domain_) / total;
-}
-
 unsigned long generate_beta_random_in_range(long position, unsigned long Total_Numbers, int L, double alpha, double beta)
 {
     int l = L;
 
     long ret;
-
-    unsigned seed = std::chrono::steady_clock::now().time_since_epoch().count();
-    std::default_random_engine e(seed);
 
     // configure jump ranges. Note: Both are inclusive
     long low_jump = l * -1;
@@ -177,13 +140,12 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, double K, in
     f1name += "/createdata_";
     f1name += std::to_string(TOTAL_NUMBERS);
     f1name += "-elems_";
-    f1name += std::to_string(K);
+    f1name += std::to_string((int) (2*K));
     f1name += "-K_";
     f1name += std::to_string(L);
     f1name += "-L_";
     f1name += std::to_string(seed);
-    f1name += "seed";
-    f1name += std::to_string(std::time(nullptr));
+    f1name += "-seed";
 
     std::ofstream myfile1;
 
@@ -221,11 +183,9 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, double K, in
     // generate noise_limit number of unique random numbers
     int ctr = 0;
     // std::vector<unsigned int> ks;
+    std::default_random_engine e(seed);
     while (ctr < noise_limit)
     {
-        unsigned seed = std::chrono::steady_clock::now().time_since_epoch().count();
-        std::default_random_engine e(seed);
-
         std::uniform_int_distribution<unsigned long> distr(0, TOTAL_NUMBERS - 1);
         unsigned long i = distr(e);
 
@@ -635,6 +595,19 @@ std::string generate_partitions_stream(unsigned long TOTAL_NUMBERS, double K, in
     return f1name;
 }
 
+void generate_one_file(unsigned long pTOTAL_NUMBERS, double k, int l, int pseed, std::string folder, std::string type, double alpha, double beta, int payload_size)
+{
+    std::ofstream outfile;
+
+    outfile.open("dataledger.txt", std::ios_base::app);
+
+    std::string folder_name = "./";
+
+    outfile << generate_partitions_stream(pTOTAL_NUMBERS, k, l, pseed, folder, type, alpha, beta, payload_size) << std::endl;
+
+    outfile.close();
+}
+
 // arguments to program:
 // unsigned long pTOTAL_NUMBERS, unsigned int pdomain, unsigned long windowSize, short k, int pseed
 
@@ -692,6 +665,7 @@ int main(int argc, char **argv)
         // since we are using rand() function, we only have to take l as an int
         int L = args::get(l_cmd);
         int seedValue = args::get(seed_cmd);
+        std::srand(seedValue);
         std::string type = text_file_cmd ? "txt" : "bin";
         std::string pathToDirectory = args::get(path_cmd);
         double alpha = args::get(alpha_cmd);
