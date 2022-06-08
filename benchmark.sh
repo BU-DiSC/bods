@@ -29,12 +29,7 @@ if [ -z "$ENTRY_SIZE" ]; then
 fi
 
 RANDOM=$SEED
-WORKLOAD_FILE=$OUTPUT_DIR/createdata_N${N}_K${K}_L${L}_S${SEED}_a${ALPHA}_b${BETA}_P${ENTRY_SIZE}
-if [ ! -f $WORKLOAD_FILE ]; then
-  #make work_gen_mod
-  ./work_gen_mod -N $N -K $K -L $L -S $SEED -a $ALPHA -b $BETA -o $WORKLOAD_FILE -P $ENTRY_SIZE > /dev/null
-fi
-echo $WORKLOAD_FILE
+WORKLOAD_FILE=$OUTPUT_DIR/createdata_N${N}_K${K}_L${L}_S${SEED}_a${ALPHA}_b${BETA}_P${ENTRY_SIZE}.csv
 
 # Full bulk-load = 1
 # Insert only = 2
@@ -45,100 +40,78 @@ WORKLOAD_OPT=$1
 
 # pre-load threshold as fraction
 if [ "$2" ]; then
-  PRELOAD_THRESH=$2
-  NUM_PRELOAD=$((N * PRELOAD_THRESH / 100))
-  echo "Num preload = $NUM_PRELOAD"
+  NUM_PRELOAD=$((N * $2 / 100))
+else
+  NUM_PRELOAD=0
 fi
 if [ "$3" ]; then
   NUM_QUERIES=$3
-  echo "Num queries = $NUM_QUERIES"
+else
+  NUM_QUERIES=0
 fi
 
 TMP_FILE=$OUTPUT_DIR/partial.csv
 OPERATIONS=$OUTPUT_DIR/operations.sql
 PRELOAD=$OUTPUT_DIR/preload.sql
 DB_INIT=$OUTPUT_DIR/db_init.sql
+LOG_FILE=$OUTPUT_DIR/logs
 # first remove files if it exists so we don't mess up statements
 rm -rf $TMP_FILE $OPERATIONS $PRELOAD
+echo $N, $K, $L, $SEED, $ALPHA, $BETA, $ENTRY_SIZE, "$1", $NUM_PRELOAD, $NUM_QUERIES >>$LOG_FILE
+if [ ! -f $WORKLOAD_FILE ]; then
+  ./work_gen_mod -N $N -K $K -L $L -S $SEED -a $ALPHA -b $BETA -o $WORKLOAD_FILE -P $ENTRY_SIZE >>$LOG_FILE
+fi
 
 case $WORKLOAD_OPT in
 1)
-  echo "Workload Option 1: Fully Bulk-load Data"
   # call dedicated script
   if [ $DB == "POSTGRES" ]; then
-    echo "COPY test_table FROM '$WORKLOAD_FILE' CSV;" >$PRELOAD
+    echo "COPY test_table FROM '$(realpath $WORKLOAD_FILE)' CSV;" >$PRELOAD
   elif [ $DB == "MONETDB" ]; then
-    echo "COPY INTO test_table FROM '$WORKLOAD_FILE' ON CLIENT USING DELIMITERS ',';" >$PRELOAD
+    echo "COPY INTO test_table FROM '$(realpath $WORKLOAD_FILE)' ON CLIENT USING DELIMITERS ',';" >$PRELOAD
   elif [ $DB == "MYSQL" ]; then
-    echo "LOAD DATA INFILE '$WORKLOAD_FILE' INTO TABLE test_table FIELDS TERMINATED BY ',';" >$PRELOAD
+    echo "LOAD DATA INFILE '$(realpath $WORKLOAD_FILE)' INTO TABLE test_table FIELDS TERMINATED BY ',';" >$PRELOAD
   fi
-  echo >$OPERATIONS
   ;;
-
 2)
-  echo "Workload Option 2: One-by-one Insert Only"
   while IFS=, read -r field1 field2; do
     echo "INSERT INTO test_table VALUES ($field1, '$field2');" >>$PRELOAD
   done <$WORKLOAD_FILE
-  echo >$OPERATIONS
   ;;
-
 3)
-  echo "Workload Option 3: Mixed workload with no pre-loading"
   echo >$PRELOAD
   NUM_PRELOAD=0
-  TOT_INS=0
-  TOT_QRS=0
-  while IFS=, read -r field1 field2; do
-    while [[ $TOT_QRS -lt $NUM_QUERIES ]] && ((RANDOM % 2)); do
-      TOT_QRS=$((TOT_QRS + 1))
-      QUERY_INDEX=$((RANDOM % (TOT_INS + 1)))
-      echo "SELECT * FROM test_table WHERE id_col=$QUERY_INDEX;" >>$OPERATIONS
-    done
-    TOT_INS=$((TOT_INS + 1))
-    echo "INSERT INTO test_table VALUES ($field1, '$field2');" >>$OPERATIONS
-  done < <(tail -n +$((NUM_PRELOAD + 1)) $WORKLOAD_FILE)
-  while [[ $TOT_QRS -lt $NUM_QUERIES ]]; do
-    TOT_QRS=$((TOT_QRS + 1))
-    QUERY_INDEX=$((RANDOM % (TOT_INS + 1)))
-    echo "SELECT * FROM test_table WHERE id_col=$QUERY_INDEX;" >>$OPERATIONS
-  done
   ;;
-
 4)
-  echo "Workload Option 4: Mixed with pre-loading using bulk load"
   head $WORKLOAD_FILE -n $NUM_PRELOAD >$TMP_FILE
   if [ $DB == "POSTGRES" ]; then
-    echo "COPY test_table FROM '$TMP_FILE' CSV;" >$PRELOAD
+    echo "COPY test_table FROM '$(realpath $TMP_FILE)' CSV;" >$PRELOAD
   elif [ $DB == "MONETDB" ]; then
-    echo "COPY INTO test_table FROM '$TMP_FILE' ON CLIENT USING DELIMITERS ',';" >$PRELOAD
+    echo "COPY INTO test_table FROM '$(realpath $TMP_FILE)' ON CLIENT USING DELIMITERS ',';" >$PRELOAD
   elif [ $DB == "MYSQL" ]; then
-    echo "LOAD DATA INFILE '$TMP_FILE' INTO TABLE test_table FIELDS TERMINATED BY ',';" >$PRELOAD
+    echo "LOAD DATA INFILE '$(realpath $TMP_FILE)' INTO TABLE test_table FIELDS TERMINATED BY ',';" >$PRELOAD
   fi
-  TOT_INS=$NUM_PRELOAD
-  TOT_QRS=0
-  while IFS=, read -r field1 field2; do
-    while [[ $TOT_QRS -lt $NUM_QUERIES ]] && ((RANDOM % 2)); do
-      TOT_QRS=$((TOT_QRS + 1))
-      QUERY_INDEX=$((RANDOM % (TOT_INS + 1)))
-      echo "SELECT * FROM test_table WHERE id_col=$QUERY_INDEX;" >>$OPERATIONS
-    done
-    TOT_INS=$((TOT_INS + 1))
-    echo "INSERT INTO test_table VALUES ($field1, '$field2');" >>$OPERATIONS
-  done < <(tail -n +$((NUM_PRELOAD + 1)) $WORKLOAD_FILE)
-  while [[ $TOT_QRS -lt $NUM_QUERIES ]]; do
-    TOT_QRS=$((TOT_QRS + 1))
-    QUERY_INDEX=$((RANDOM % (TOT_INS + 1)))
-    echo "SELECT * FROM test_table WHERE id_col=$QUERY_INDEX;" >>$OPERATIONS
-  done
   ;;
-
 5)
-  echo "Workload Option 5: Mixed with pre-loading using one-by-one inserts"
   head $WORKLOAD_FILE -n $NUM_PRELOAD |
     while IFS=, read -r field1 field2; do
       echo "INSERT INTO test_table VALUES ($field1, '$field2');" >>$PRELOAD
     done
+  ;;
+*)
+  echo "Invalid workload option." >>$LOG_FILE
+  ;;
+esac
+
+case $WORKLOAD_OPT in
+1 | 2)
+  NUM_PRELOAD=$N
+  NUM_QUERIES=0
+  TOT_INS=$N
+  TOT_QRS=0
+  echo >$OPERATIONS
+  ;;
+3 | 4 | 5)
   TOT_INS=$NUM_PRELOAD
   TOT_QRS=0
   while IFS=, read -r field1 field2; do
@@ -156,24 +129,21 @@ case $WORKLOAD_OPT in
     echo "SELECT * FROM test_table WHERE id_col=$QUERY_INDEX;" >>$OPERATIONS
   done
   ;;
-
-*) echo "wrong option" ;;
 esac
 
-echo "Total number of preloads = $NUM_PRELOAD"
-echo "Total number of inserts = $TOT_INS"
-echo "Total number of queries = $TOT_QRS"
-
 if [ $DB == "POSTGRES" ]; then
-  psql -U postgres -f $DB_INIT
-  time psql -U postgres -f $PRELOAD
-  time psql -U postgres -f $OPERATIONS
+  psql -U postgres -f $DB_INIT >>$LOG_FILE
+  PRELOAD_TIME=$( (/usr/bin/time -f "%E" psql -U postgres -f $PRELOAD >>$LOG_FILE) 2>&1)
+  OPERATIONS_TIME=$( (/usr/bin/time -f "%E" psql -U postgres -f $OPERATIONS >>$LOG_FILE) 2>&1)
 elif [ $DB == "MONETDB" ]; then
-  mclient -d db <$DB_INIT
-  time mclient -d db <$PRELOAD
-  time mclient -d db <$OPERATIONS
+  mclient -d db <$DB_INIT >>$LOG_FILE
+  PRELOAD_TIME=$( (/usr/bin/time -f "%E" mclient -d db <$PRELOAD >>$LOG_FILE) 2>&1)
+  OPERATIONS_TIME=$( (/usr/bin/time -f "%E" mclient -d db <$OPERATIONS >>$LOG_FILE) 2>&1)
 elif [ $DB == "MYSQL" ]; then
-  mysql sortedness_benchmark <$DB_INIT
-  time mysql sortedness_benchmark <$PRELOAD
-  time mysql sortedness_benchmark <$OPERATIONS
+  mysql sortedness_benchmark <$DB_INIT >>$LOG_FILE
+  PRELOAD_TIME=$( (/usr/bin/time -f "%E" mysql sortedness_benchmark <$PRELOAD >>$LOG_FILE) 2>&1)
+  OPERATIONS_TIME=$( (/usr/bin/time -f "%E" mysql sortedness_benchmark <$OPERATIONS >>$LOG_FILE) 2>&1)
 fi
+
+# shellcheck disable=SC2086
+echo $N, $K, $L, $SEED, $ALPHA, $BETA, $ENTRY_SIZE, "$1", $NUM_PRELOAD, $NUM_QUERIES, "$PRELOAD_TIME", "$OPERATIONS_TIME", $TOT_INS, $TOT_QRS
