@@ -85,11 +85,11 @@ case $WORKLOAD_OPT in
 4)
   head $WORKLOAD_FILE -n $NUM_PRELOAD >$TMP_FILE
   if [ $DB == "POSTGRES" ]; then
-    echo "COPY test_table FROM '$(realpath $TMP_FILE)' CSV;" >$PRELOAD
+    echo "\COPY test_table FROM '$(realpath $TMP_FILE)' CSV;" >$PRELOAD
   elif [ $DB == "MONETDB" ]; then
     echo "COPY INTO test_table FROM '$(realpath $TMP_FILE)' ON CLIENT USING DELIMITERS ',';" >$PRELOAD
   elif [ $DB == "MYSQL" ]; then
-    echo "LOAD DATA INFILE '$(realpath $TMP_FILE)' INTO TABLE test_table FIELDS TERMINATED BY ',';" >$PRELOAD
+    echo "LOAD DATA LOCAL INFILE '$(realpath $TMP_FILE)' INTO TABLE test_table FIELDS TERMINATED BY ',';" >$PRELOAD
   fi
   ;;
 5)
@@ -141,8 +141,8 @@ elif [ $DB == "MONETDB" ]; then
   OPERATIONS_TIME=$( (/usr/bin/time -f "%E" mclient -d db <$OPERATIONS >>$LOG_FILE) 2>&1)
 elif [ $DB == "MYSQL" ]; then
   mysql sortedness_benchmark <$DB_INIT >>$LOG_FILE
-  PRELOAD_TIME=$( (/usr/bin/time -f "%E" mysql sortedness_benchmark <$PRELOAD >>$LOG_FILE) 2>&1)
-  OPERATIONS_TIME=$( (/usr/bin/time -f "%E" mysql sortedness_benchmark <$OPERATIONS >>$LOG_FILE) 2>&1)
+  PRELOAD_TIME=$( (/usr/bin/time -f "%E" mysql --local-infile=1 sortedness_benchmark <$PRELOAD >>$LOG_FILE) 2>&1)
+  OPERATIONS_TIME=$( (/usr/bin/time -f "%E" mysql --local-infile=1 sortedness_benchmark <$OPERATIONS >>$LOG_FILE) 2>&1)
 fi
 
 # shellcheck disable=SC2086
