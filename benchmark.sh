@@ -31,7 +31,7 @@ fi
 RANDOM=$SEED
 WORKLOAD_FILE=$OUTPUT_DIR/createdata_N${N}_K${K}_L${L}_S${SEED}_a${ALPHA}_b${BETA}_P${ENTRY_SIZE}
 if [ ! -f $WORKLOAD_FILE ]; then
-#  make work_gen_mod
+  #make work_gen_mod
   ./work_gen_mod -N $N -K $K -L $L -S $SEED -a $ALPHA -b $BETA -o $WORKLOAD_FILE -P $ENTRY_SIZE
 fi
 echo $WORKLOAD_FILE
@@ -89,18 +89,19 @@ case $WORKLOAD_OPT in
   NUM_PRELOAD=0
   TOT_INS=0
   TOT_QRS=0
-  while [[ $TOT_INS -lt $N || $TOT_QRS -lt $NUM_QUERIES ]]; do
-    FLIP=$((RANDOM % 2))
-    if [[ ($TOT_INS -lt $N && $FLIP -ne 0) || ($TOT_QRS -ge $NUM_QUERIES && $FLIP -eq 0) ]]; then
-      TOT_INS=$((TOT_INS + 1))
-      while IFS=, read -r field1 field2; do
-        echo "INSERT INTO test_table VALUES ($field1, '$field2');" >>$OPERATIONS
-      done < <(sed "${TOT_INS}q;d" $WORKLOAD_FILE)
-    else
+  while IFS=, read -r field1 field2; do
+    while [[ $TOT_QRS -lt $NUM_QUERIES ]] && ((RANDOM % 2)); do
+      TOT_QRS=$((TOT_QRS + 1))
       QUERY_INDEX=$(((RANDOM % N) + 1))
       echo "SELECT * FROM test_table WHERE id_col=$QUERY_INDEX;" >>$OPERATIONS
-      TOT_QRS=$((TOT_QRS + 1))
-    fi
+    done
+    TOT_INS=$((TOT_INS + 1))
+    echo "INSERT INTO test_table VALUES ($field1, '$field2');" >>$OPERATIONS
+  done < <(tail -n +$((NUM_PRELOAD + 1)) $WORKLOAD_FILE)
+  while [[ $TOT_QRS -lt $NUM_QUERIES ]]; do
+    TOT_QRS=$((TOT_QRS + 1))
+    QUERY_INDEX=$(((RANDOM % N) + 1))
+    echo "SELECT * FROM test_table WHERE id_col=$QUERY_INDEX;" >>$OPERATIONS
   done
   ;;
 
@@ -116,18 +117,19 @@ case $WORKLOAD_OPT in
   fi
   TOT_INS=$NUM_PRELOAD
   TOT_QRS=0
-  while [[ $TOT_INS -lt $N || $TOT_QRS -lt $NUM_QUERIES ]]; do
-    FLIP=$((RANDOM % 2))
-    if [[ ($TOT_INS -lt $N && $FLIP -ne 0) || ($TOT_QRS -ge $NUM_QUERIES && $FLIP -eq 0) ]]; then
-      TOT_INS=$((TOT_INS + 1))
-      while IFS=, read -r field1 field2; do
-        echo "INSERT INTO test_table VALUES ($field1, '$field2');" >>$OPERATIONS
-      done < <(sed "${TOT_INS}q;d" $WORKLOAD_FILE)
-    else
+  while IFS=, read -r field1 field2; do
+    while [[ $TOT_QRS -lt $NUM_QUERIES ]] && ((RANDOM % 2)); do
+      TOT_QRS=$((TOT_QRS + 1))
       QUERY_INDEX=$(((RANDOM % N) + 1))
       echo "SELECT * FROM test_table WHERE id_col=$QUERY_INDEX;" >>$OPERATIONS
-      TOT_QRS=$((TOT_QRS + 1))
-    fi
+    done
+    TOT_INS=$((TOT_INS + 1))
+    echo "INSERT INTO test_table VALUES ($field1, '$field2');" >>$OPERATIONS
+  done < <(tail -n +$((NUM_PRELOAD + 1)) $WORKLOAD_FILE)
+  while [[ $TOT_QRS -lt $NUM_QUERIES ]]; do
+    TOT_QRS=$((TOT_QRS + 1))
+    QUERY_INDEX=$(((RANDOM % N) + 1))
+    echo "SELECT * FROM test_table WHERE id_col=$QUERY_INDEX;" >>$OPERATIONS
   done
   ;;
 
@@ -139,18 +141,19 @@ case $WORKLOAD_OPT in
     done
   TOT_INS=$NUM_PRELOAD
   TOT_QRS=0
-  while [[ $TOT_INS -lt $N || $TOT_QRS -lt $NUM_QUERIES ]]; do
-    FLIP=$((RANDOM % 2))
-    if [[ ($TOT_INS -lt $N && $FLIP -ne 0) || ($TOT_QRS -ge $NUM_QUERIES && $FLIP -eq 0) ]]; then
-      TOT_INS=$((TOT_INS + 1))
-      while IFS=, read -r field1 field2; do
-        echo "INSERT INTO test_table VALUES ($field1, '$field2');" >>$OPERATIONS
-      done < <(sed "${TOT_INS}q;d" $WORKLOAD_FILE)
-    else
+  while IFS=, read -r field1 field2; do
+    while [[ $TOT_QRS -lt $NUM_QUERIES ]] && ((RANDOM % 2)); do
+      TOT_QRS=$((TOT_QRS + 1))
       QUERY_INDEX=$(((RANDOM % N) + 1))
       echo "SELECT * FROM test_table WHERE id_col=$QUERY_INDEX;" >>$OPERATIONS
-      TOT_QRS=$((TOT_QRS + 1))
-    fi
+    done
+    TOT_INS=$((TOT_INS + 1))
+    echo "INSERT INTO test_table VALUES ($field1, '$field2');" >>$OPERATIONS
+  done < <(tail -n +$((NUM_PRELOAD + 1)) $WORKLOAD_FILE)
+  while [[ $TOT_QRS -lt $NUM_QUERIES ]]; do
+    TOT_QRS=$((TOT_QRS + 1))
+    QUERY_INDEX=$(((RANDOM % N) + 1))
+    echo "SELECT * FROM test_table WHERE id_col=$QUERY_INDEX;" >>$OPERATIONS
   done
   ;;
 
