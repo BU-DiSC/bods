@@ -64,7 +64,6 @@ fi
 
 case $WORKLOAD_OPT in
 1)
-  # call dedicated script
   if [ $DB == "POSTGRES" ]; then
     echo "\COPY test_table FROM '$(realpath $WORKLOAD_FILE)' CSV;" >$PRELOAD
   elif [ $DB == "MONETDB" ]; then
@@ -147,3 +146,4 @@ fi
 
 # shellcheck disable=SC2086
 echo $N, $K, $L, $SEED, $ALPHA, $BETA, $ENTRY_SIZE, "$1", $NUM_PRELOAD, $NUM_QUERIES, "$PRELOAD_TIME", "$OPERATIONS_TIME", $TOT_INS, $TOT_QRS
+echo $N, $K, $L, $SEED, $ALPHA, $BETA, $ENTRY_SIZE, "$1", $NUM_PRELOAD, $NUM_QUERIES, "$PRELOAD_TIME", "$OPERATIONS_TIME", $TOT_INS, $TOT_QRS >>$LOG_FILE
