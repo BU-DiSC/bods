@@ -74,6 +74,10 @@ unsigned long generate_beta_random_in_range(long position, unsigned long Total_N
 // this function code from GeekForGeeks
 double findMedian(std::vector<long> a, int n)
 {
+    if(a.size()==0)
+    {
+        return 0;
+    }
     // If size of the arr[] is even
     if (n % 2 == 0)
     {
