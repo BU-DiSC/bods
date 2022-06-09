@@ -66,11 +66,11 @@ case $WORKLOAD_OPT in
 1)
   # call dedicated script
   if [ $DB == "POSTGRES" ]; then
-    echo "COPY test_table FROM '$(realpath $WORKLOAD_FILE)' CSV;" >$PRELOAD
+    echo "\COPY test_table FROM '$(realpath $WORKLOAD_FILE)' CSV;" >$PRELOAD
   elif [ $DB == "MONETDB" ]; then
     echo "COPY INTO test_table FROM '$(realpath $WORKLOAD_FILE)' ON CLIENT USING DELIMITERS ',';" >$PRELOAD
   elif [ $DB == "MYSQL" ]; then
-    echo "LOAD DATA INFILE '$(realpath $WORKLOAD_FILE)' INTO TABLE test_table FIELDS TERMINATED BY ',';" >$PRELOAD
+    echo "LOAD DATA LOCAL INFILE '$(realpath $WORKLOAD_FILE)' INTO TABLE test_table FIELDS TERMINATED BY ',';" >$PRELOAD
   fi
   ;;
 2)
