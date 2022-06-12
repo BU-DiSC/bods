@@ -29,7 +29,7 @@ if [ -z "$ENTRY_SIZE" ]; then
 fi
 
 RANDOM=$SEED
-WORKLOAD_FILE=$OUTPUT_DIR/createdata_N${N}_K${K}_L${L}_S${SEED}_a${ALPHA}_b${BETA}_P${ENTRY_SIZE}.csv
+WORKLOAD=$OUTPUT_DIR/createdata_N${N}_K${K}_L${L}_S${SEED}_a${ALPHA}_b${BETA}_P${ENTRY_SIZE}
 
 # Full bulk-load = 1
 # Insert only = 2
@@ -54,81 +54,82 @@ TMP_FILE=$OUTPUT_DIR/partial.csv
 OPERATIONS=$OUTPUT_DIR/operations.sql
 PRELOAD=$OUTPUT_DIR/preload.sql
 DB_INIT=$OUTPUT_DIR/db_init.sql
-LOG_FILE=$OUTPUT_DIR/logs
+LOG_FILE=$WORKLOAD.log
+WORKLOAD_FILE=$WORKLOAD.csv
+
 # first remove files if it exists so we don't mess up statements
-rm -rf $TMP_FILE $OPERATIONS $PRELOAD
+rm -rf $TMP_FILE $OPERATIONS $PRELOAD $LOG_FILE
 echo $N, $K, $L, $SEED, $ALPHA, $BETA, $ENTRY_SIZE, "$1", $NUM_PRELOAD, $NUM_QUERIES >>$LOG_FILE
 if [ ! -f $WORKLOAD_FILE ]; then
   ./work_gen_mod -N $N -K $K -L $L -S $SEED -a $ALPHA -b $BETA -o $WORKLOAD_FILE -P $ENTRY_SIZE >>$LOG_FILE
 fi
 
-case $WORKLOAD_OPT in
-1)
-  if [ $DB == "POSTGRES" ]; then
-    echo "\COPY test_table FROM '$(realpath $WORKLOAD_FILE)' CSV;" >$PRELOAD
-  elif [ $DB == "MONETDB" ]; then
-    echo "COPY INTO test_table FROM '$(realpath $WORKLOAD_FILE)' ON CLIENT USING DELIMITERS ',';" >$PRELOAD
-  elif [ $DB == "MYSQL" ]; then
-    echo "LOAD DATA LOCAL INFILE '$(realpath $WORKLOAD_FILE)' INTO TABLE test_table FIELDS TERMINATED BY ',';" >$PRELOAD
-  fi
-  ;;
-2)
-  while IFS=, read -r field1 field2; do
-    echo "INSERT INTO test_table VALUES ($field1, '$field2');" >>$PRELOAD
-  done <$WORKLOAD_FILE
-  ;;
-3)
-  echo >$PRELOAD
-  NUM_PRELOAD=0
-  ;;
-4)
-  head $WORKLOAD_FILE -n $NUM_PRELOAD >$TMP_FILE
-  if [ $DB == "POSTGRES" ]; then
-    echo "\COPY test_table FROM '$(realpath $TMP_FILE)' CSV;" >$PRELOAD
-  elif [ $DB == "MONETDB" ]; then
-    echo "COPY INTO test_table FROM '$(realpath $TMP_FILE)' ON CLIENT USING DELIMITERS ',';" >$PRELOAD
-  elif [ $DB == "MYSQL" ]; then
-    echo "LOAD DATA LOCAL INFILE '$(realpath $TMP_FILE)' INTO TABLE test_table FIELDS TERMINATED BY ',';" >$PRELOAD
-  fi
-  ;;
-5)
-  head $WORKLOAD_FILE -n $NUM_PRELOAD |
+{
+  case $WORKLOAD_OPT in
+  1)
+    if [ $DB == "POSTGRES" ]; then
+      echo "\COPY test_table FROM '$(realpath $WORKLOAD_FILE)' CSV;"
+    elif [ $DB == "MONETDB" ]; then
+      echo "COPY INTO test_table FROM '$(realpath $WORKLOAD_FILE)' ON CLIENT USING DELIMITERS ',';"
+    elif [ $DB == "MYSQL" ]; then
+      echo "LOAD DATA LOCAL INFILE '$(realpath $WORKLOAD_FILE)' INTO TABLE test_table FIELDS TERMINATED BY ',';"
+    fi
+    ;;
+  2)
     while IFS=, read -r field1 field2; do
-      echo "INSERT INTO test_table VALUES ($field1, '$field2');" >>$PRELOAD
-    done
-  ;;
-*)
-  echo "Invalid workload option." >>$LOG_FILE
-  ;;
-esac
+      echo "INSERT INTO test_table VALUES ($field1, '$field2');"
+    done <$WORKLOAD_FILE
+    ;;
+  3)
+    NUM_PRELOAD=0
+    ;;
+  4)
+    head $WORKLOAD_FILE -n $NUM_PRELOAD >$TMP_FILE
+    if [ $DB == "POSTGRES" ]; then
+      echo "\COPY test_table FROM '$(realpath $TMP_FILE)' CSV;"
+    elif [ $DB == "MONETDB" ]; then
+      echo "COPY INTO test_table FROM '$(realpath $TMP_FILE)' ON CLIENT USING DELIMITERS ',';"
+    elif [ $DB == "MYSQL" ]; then
+      echo "LOAD DATA LOCAL INFILE '$(realpath $TMP_FILE)' INTO TABLE test_table FIELDS TERMINATED BY ',';"
+    fi
+    ;;
+  5)
+    head $WORKLOAD_FILE -n $NUM_PRELOAD |
+      while IFS=, read -r field1 field2; do
+        echo "INSERT INTO test_table VALUES ($field1, '$field2');"
+      done
+    ;;
+  esac
+} >$PRELOAD
 
-case $WORKLOAD_OPT in
-1 | 2)
-  NUM_PRELOAD=$N
-  NUM_QUERIES=0
-  TOT_INS=$N
-  TOT_QRS=0
-  echo >$OPERATIONS
-  ;;
-3 | 4 | 5)
-  TOT_INS=$NUM_PRELOAD
-  TOT_QRS=0
-  while IFS=, read -r field1 field2; do
-    while [[ $TOT_QRS -lt $NUM_QUERIES ]] && ((RANDOM % 2)); do
+{
+  case $WORKLOAD_OPT in
+  1 | 2)
+    NUM_PRELOAD=$N
+    NUM_QUERIES=0
+    TOT_INS=$N
+    TOT_QRS=0
+    ;;
+  3 | 4 | 5)
+    TOT_INS=$NUM_PRELOAD
+    TOT_QRS=0
+    while IFS=, read -r field1 field2; do
+      while [[ $TOT_QRS -lt $NUM_QUERIES ]] && ((RANDOM % 2)); do
+        TOT_QRS=$((TOT_QRS + 1))
+        QUERY_INDEX=$((RANDOM % (TOT_INS + 1)))
+        echo "SELECT * FROM test_table WHERE id_col=$QUERY_INDEX;"
+      done
+      TOT_INS=$((TOT_INS + 1))
+      echo "INSERT INTO test_table VALUES ($field1, '$field2');"
+    done < <(tail -n +$((NUM_PRELOAD + 1)) $WORKLOAD_FILE)
+    while [[ $TOT_QRS -lt $NUM_QUERIES ]]; do
       TOT_QRS=$((TOT_QRS + 1))
       QUERY_INDEX=$((RANDOM % (TOT_INS + 1)))
-      echo "SELECT * FROM test_table WHERE id_col=$QUERY_INDEX;" >>$OPERATIONS
+      echo "SELECT * FROM test_table WHERE id_col=$QUERY_INDEX;"
     done
-    TOT_INS=$((TOT_INS + 1))
-    echo "INSERT INTO test_table VALUES ($field1, '$field2');" >>$OPERATIONS
-  done < <(tail -n +$((NUM_PRELOAD + 1)) $WORKLOAD_FILE)
-  while [[ $TOT_QRS -lt $NUM_QUERIES ]]; do
-    TOT_QRS=$((TOT_QRS + 1))
-    QUERY_INDEX=$((RANDOM % (TOT_INS + 1)))
-    echo "SELECT * FROM test_table WHERE id_col=$QUERY_INDEX;" >>$OPERATIONS
-  done
-  ;;
-esac
+    ;;
+  esac
+} >$OPERATIONS
 
 if [ $DB == "POSTGRES" ]; then
   psql -U postgres -f $DB_INIT >>$LOG_FILE
