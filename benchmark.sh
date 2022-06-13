@@ -53,7 +53,13 @@ fi
 TMP_FILE=$OUTPUT_DIR/partial.csv
 OPERATIONS=$OUTPUT_DIR/operations.sql
 PRELOAD=$OUTPUT_DIR/preload.sql
-DB_INIT=$OUTPUT_DIR/db_init.sql
+if [ $DB == "POSTGRES" ]; then
+  DB_INIT=postgres_init.sql
+elif [ $DB == "MONETDB" ]; then
+  DB_INIT=monet_init.sql
+elif [ $DB == "MYSQL" ]; then
+  DB_INIT=mysql_init.sql
+fi
 LOG_FILE=$WORKLOAD.log
 WORKLOAD_FILE=$WORKLOAD.csv
 
@@ -145,6 +151,5 @@ elif [ $DB == "MYSQL" ]; then
   OPERATIONS_TIME=$( (/usr/bin/time -f "%E" mysql --local-infile=1 sortedness_benchmark <$OPERATIONS >>$LOG_FILE) 2>&1)
 fi
 
-# shellcheck disable=SC2086
-echo $N, $K, $L, $SEED, $ALPHA, $BETA, $ENTRY_SIZE, "$1", $NUM_PRELOAD, $NUM_QUERIES, "$PRELOAD_TIME", "$OPERATIONS_TIME", $TOT_INS, $TOT_QRS
-echo $N, $K, $L, $SEED, $ALPHA, $BETA, $ENTRY_SIZE, "$1", $NUM_PRELOAD, $NUM_QUERIES, "$PRELOAD_TIME", "$OPERATIONS_TIME", $TOT_INS, $TOT_QRS >>$LOG_FILE
+echo $DB, $N, $K, $L, $SEED, $ALPHA, $BETA, $ENTRY_SIZE, "$WORKLOAD_OPT", $NUM_PRELOAD, $NUM_QUERIES, "$PRELOAD_TIME", "$OPERATIONS_TIME", $TOT_INS, $TOT_QRS
+echo $DB, $N, $K, $L, $SEED, $ALPHA, $BETA, $ENTRY_SIZE, "$WORKLOAD_OPT", $NUM_PRELOAD, $NUM_QUERIES, "$PRELOAD_TIME", "$OPERATIONS_TIME", $TOT_INS, $TOT_QRS >>$LOG_FILE
