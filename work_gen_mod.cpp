@@ -153,9 +153,9 @@ void generate_partitions_stream(unsigned long TOTAL_NUMBERS, double K, int L, in
     }
 
     std::cout << "Generating sources: ";
-    progressbar bar(noise_limit);
-    bar.set_todo_char(" ");
-    bar.set_done_char("█");
+//    progressbar bar(noise_limit);
+//    bar.set_todo_char(" ");
+//    bar.set_done_char("█");
 
     // generate noise_limit number of unique random numbers
     int ctr = 0;
@@ -179,7 +179,7 @@ void generate_partitions_stream(unsigned long TOTAL_NUMBERS, double K, int L, in
             }
             // ks.push_back(i);
             ctr++;
-            bar.update();
+//            bar.update();
         }
     }
 
@@ -254,9 +254,9 @@ void generate_partitions_stream(unsigned long TOTAL_NUMBERS, double K, int L, in
 
     std::cout << "Now start with swapping: ";
 
-    progressbar bar_swaps(myset.size());
-    bar_swaps.set_todo_char(" ");
-    bar_swaps.set_done_char("█");
+//    progressbar bar_swaps(myset.size());
+//    bar_swaps.set_todo_char(" ");
+//    bar_swaps.set_done_char("█");
     // since the first source has already been taken care of, simply start from the next
     for (unsigned long i : myset)
     {
@@ -320,7 +320,7 @@ void generate_partitions_stream(unsigned long TOTAL_NUMBERS, double K, int L, in
             }
         }
 
-        bar_swaps.update();
+//        bar_swaps.update();
         if (noise_counter == noise_limit)
             break;
 

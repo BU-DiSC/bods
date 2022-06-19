@@ -60,11 +60,10 @@ elif [ $DB == "MONETDB" ]; then
 elif [ $DB == "MYSQL" ]; then
   DB_INIT=mysql_init.sql
 fi
-LOG_FILE=$WORKLOAD.log
+LOG_FILE=/dev/null
 WORKLOAD_FILE=$WORKLOAD.csv
 
 # first remove files if it exists so we don't mess up statements
-rm -rf $TMP_FILE $OPERATIONS $PRELOAD $LOG_FILE
 echo $N, $K, $L, $SEED, $ALPHA, $BETA, $ENTRY_SIZE, "$1", $NUM_PRELOAD, $NUM_QUERIES >>$LOG_FILE
 if [ ! -f $WORKLOAD_FILE ]; then
   ./work_gen_mod -N $N -K $K -L $L -S $SEED -a $ALPHA -b $BETA -o $WORKLOAD_FILE -P $ENTRY_SIZE >>$LOG_FILE
@@ -138,17 +137,17 @@ fi
 } >$OPERATIONS
 
 if [ $DB == "POSTGRES" ]; then
-  psql -U postgres -f $DB_INIT >>$LOG_FILE
-  PRELOAD_TIME=$( (/usr/bin/time -f "%E" psql -U postgres -f $PRELOAD >>$LOG_FILE) 2>&1)
-  OPERATIONS_TIME=$( (/usr/bin/time -f "%E" psql -U postgres -f $OPERATIONS >>$LOG_FILE) 2>&1)
+  psql -U postgres -f $DB_INIT >$LOG_FILE
+  PRELOAD_TIME=$(/usr/bin/time -f "%E" psql -U postgres -f $PRELOAD 2>&1 >>$LOG_FILE)
+  OPERATIONS_TIME=$(/usr/bin/time -f "%E" psql -U postgres -f $OPERATIONS 2>&1 >>$LOG_FILE)
 elif [ $DB == "MONETDB" ]; then
-  mclient -d db <$DB_INIT >>$LOG_FILE
-  PRELOAD_TIME=$( (/usr/bin/time -f "%E" mclient -d db <$PRELOAD >>$LOG_FILE) 2>&1)
-  OPERATIONS_TIME=$( (/usr/bin/time -f "%E" mclient -d db <$OPERATIONS >>$LOG_FILE) 2>&1)
+  mclient -d db <$DB_INIT >$LOG_FILE
+  PRELOAD_TIME=$(/usr/bin/time -f "%E" mclient -d db <$PRELOAD 2>&1 >>$LOG_FILE)
+  OPERATIONS_TIME=$(/usr/bin/time -f "%E" mclient -d db <$OPERATIONS 2>&1 >>$LOG_FILE)
 elif [ $DB == "MYSQL" ]; then
-  mysql sortedness_benchmark <$DB_INIT >>$LOG_FILE
-  PRELOAD_TIME=$( (/usr/bin/time -f "%E" mysql --local-infile=1 sortedness_benchmark <$PRELOAD >>$LOG_FILE) 2>&1)
-  OPERATIONS_TIME=$( (/usr/bin/time -f "%E" mysql --local-infile=1 sortedness_benchmark <$OPERATIONS >>$LOG_FILE) 2>&1)
+  mysql sortedness_benchmark <$DB_INIT >$LOG_FILE
+  PRELOAD_TIME=$(/usr/bin/time -f "%E" mysql --local-infile=1 sortedness_benchmark <$PRELOAD 2>&1 >>$LOG_FILE)
+  OPERATIONS_TIME=$(/usr/bin/time -f "%E" mysql --local-infile=1 sortedness_benchmark <$OPERATIONS 2>&1 >>$LOG_FILE)
 fi
 
 echo $DB, $N, $K, $L, $SEED, $ALPHA, $BETA, $ENTRY_SIZE, "$WORKLOAD_OPT", $NUM_PRELOAD, $NUM_QUERIES, "$PRELOAD_TIME", "$OPERATIONS_TIME", $TOT_INS, $TOT_QRS
