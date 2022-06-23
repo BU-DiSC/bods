@@ -1,6 +1,6 @@
 CXXFLAGS=-g -std=c++0x
 
-all: sortedness_workload_generator
+all: sortedness_data_generator
 
 clean:
-	rm -rf sortedness_workload_generator
+	rm -rf sortedness_data_generator
