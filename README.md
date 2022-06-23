@@ -1,29 +1,49 @@
-# sortedness-workload
+# BoDS: A Benchmark on Data Sortedness
 
-Workload generator for VLDB 2022 submission: "OSM-Tree: A Sortedness-Aware Index"
+BoDS is a benchmark to compare the performance of database systems in terms of index construction and navigation costs when operaitng on 
+data ingested with variable sortedness. The benchmark contains a synthetic data generator that quantifies sortedness using the 
+(K,L)-sortedness metric to create differently sorted data collections. At present, the benchmark supports testing on PostgreSQL, a popular
+row store.
 
-## About the workload generator
-This workload generator uses the K,L metric to denote near-sorted collections, where K is the number of unordered entries and L is the maximum displacement of an out-of-order entry from its actual/ideal position.
+## System Requirements
+1. C++ std=11 to compile the data generator
+2. An installation of the C++ Boost library
+3. PostgreSQL to run the benchmark
 
-The workload generator can create both binary and txt files. It is recommended to only use the txt extension to visualize workloads (as it is easier to read in python or other visualization tools).
+## About the data generator
+This data generator uses the K,L metric to denote near-sorted collections, where K is the number of unordered entries and L is the maximum displacement of an out-of-order entry from its actual/ideal position. Given a K and L, the data generator creates a collection of (K,L)-sorted keys with a payload (string). The payload is a randomly generated string of user-defined length. 
 
-As of now, this workload generator only supports creating ingestion workloads of integers. The maximum number of entries it can correctly generate is 2 Billion.
+The data generator further expands the (K,L)-sortedness metric to incorporate the distribution of the L parameter of the unordered entries using 
+a generalized beta distribution with fixed bounds (supported by the Boost library). 
 
 ## How to run
 
-### To run Workload generator
-1. Compile using the `make` command
-2. Run the workload generator using the following format:
+### To run Data generator
+1. Create the workloads directory using 
    ```shell
-   ./sortedness_workload_generator -N <entries to generate> -K <K%> -L <L%> -S <seed> -o <directory> -a <alpha> -b <beta> -P <payload_size_in_bytes>
+   mkdir workloads/
+   ```
+3. Compile using the `make` command
+4. Run the workload generator using the following format:
+   ```shell
+   ./sortedness_data_generator -N <entries to generate> -K <K%> -L <L%> -S <seed> -o <output_file> -a <alpha> -b <beta> -P <payload_size_in_bytes>
    ```
 
 For example, a sample ingestion workload to create 1M entries with K=L=10 (10% of 1M entries) will look like:
 ```shell
-./sortedness_workload_generator -N 1000000 -K 10 -L 10 -S 1 -o ./workloads -a 2.5 -b 2.9 -P 252
+./sortedness_data_generator -N 1000000 -K 10 -L 10 -S 1 -o ./workloads/createdata_N1000000_K10_L10_S1234_a1_b1_P4.txt -a 2.5 -b 2.9 -P 252
 ```
-Here, we used "1" as a seed value, and alpha=2.5 while beta=2.9 for the sortedness distribution.  We place this created workload in the "workloads/" directory, and use a payload size of 252 Bytes.
+Here, we used "1234" as a seed value, and alpha=1 while beta=1 for the sortedness distribution.  We place this created workload in the "workloads/" directory, and use a payload size of 252 Bytes. Note, the data generator requires the name of the output file as input. By default, the benchmark 
+uses the following format for nomenclature: 
+```shell
+createdata_N<num_entries>_K<k%>_L<l%>_S<seed_val>_a<alpha_val>_b<beta_val>_P<payload_size>.txt
+```
 
 This will by default generate a comma separated txt file with the key in the first column and a randomly generated payload (string) in the second column.
 
-Note: You will need to create the directory to place the workload if it does not pre-exist. The workload generator will not create this directory automatically. 
+### To run the BoDS Benchmark
+One can use the runloads.sh script as a controller to run the benchmark. This script calls the benchmarking script for a specific set of input values. 
+To run the benchmark with multiple data collections or workload inputs, the benchmarking script (benchmark.sh) can be called repeatedly through 
+the runloads.sh controller. 
+Note: both runloads.sh or benchmark.sh do not require the data collection to be created apriori, and can create the data file themselves. However, if 
+a data file pre-exists, a new file is not created and the pre-existing file is used.
