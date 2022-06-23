@@ -66,7 +66,7 @@ WORKLOAD_FILE=$WORKLOAD.csv
 # first remove files if it exists so we don't mess up statements
 echo $N, $K, $L, $SEED, $ALPHA, $BETA, $ENTRY_SIZE, "$1", $NUM_PRELOAD, $NUM_QUERIES >>$LOG_FILE
 if [ ! -f $WORKLOAD_FILE ]; then
-  ./work_gen_mod -N $N -K $K -L $L -S $SEED -a $ALPHA -b $BETA -o $WORKLOAD_FILE -P $ENTRY_SIZE >>$LOG_FILE
+  ./sortedness_workload_generator -N $N -K $K -L $L -S $SEED -a $ALPHA -b $BETA -o $WORKLOAD_FILE -P $ENTRY_SIZE >>$LOG_FILE
 fi
 
 {
