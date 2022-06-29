@@ -120,8 +120,11 @@ double findMedian(std::vector<long> a, int n)
     Each partition of L elements is shuffled, and has some noise (randomness) linked to the
     percent_outRange parameter.
     */
-void generate_partitions_stream(unsigned long TOTAL_NUMBERS, double K, int L, int seed, std::string &outputFile, double alpha = 1.0, double beta = 1.0, int payload_size = 252)
+void generate_partitions_stream(unsigned long TOTAL_NUMBERS, double k, int L, int seed, std::string &outputFile, double alpha = 1.0, double beta = 1.0, int payload_size = 252)
 {
+    std::srand(seed);
+    // fix K for new definition
+    double K = k / 2.0;
 
     double p_outOfRange = K;
 
@@ -153,9 +156,9 @@ void generate_partitions_stream(unsigned long TOTAL_NUMBERS, double K, int L, in
     }
 
     std::cout << "Generating sources: ";
-    progressbar bar(noise_limit);
-    bar.set_todo_char(" ");
-    bar.set_done_char("█");
+//    progressbar bar(noise_limit);
+//    bar.set_todo_char(" ");
+//    bar.set_done_char("█");
 
     // generate noise_limit number of unique random numbers
     int ctr = 0;
@@ -179,7 +182,7 @@ void generate_partitions_stream(unsigned long TOTAL_NUMBERS, double K, int L, in
             }
             // ks.push_back(i);
             ctr++;
-            bar.update();
+//            bar.update();
         }
     }
 
@@ -193,7 +196,7 @@ void generate_partitions_stream(unsigned long TOTAL_NUMBERS, double K, int L, in
     bool generated_with_max_displacement = false;
     for (unsigned long i: myset)
     {
-        if (tries_ctr <= num_tries_for_max_displacement) {
+        if (tries_ctr >= num_tries_for_max_displacement) {
             break;
         }
 
@@ -254,9 +257,9 @@ void generate_partitions_stream(unsigned long TOTAL_NUMBERS, double K, int L, in
 
     std::cout << "Now start with swapping: ";
 
-    progressbar bar_swaps(myset.size());
-    bar_swaps.set_todo_char(" ");
-    bar_swaps.set_done_char("█");
+//    progressbar bar_swaps(myset.size());
+//    bar_swaps.set_todo_char(" ");
+//    bar_swaps.set_done_char("█");
     // since the first source has already been taken care of, simply start from the next
     for (unsigned long i : myset)
     {
@@ -320,7 +323,7 @@ void generate_partitions_stream(unsigned long TOTAL_NUMBERS, double K, int L, in
             }
         }
 
-        bar_swaps.update();
+//        bar_swaps.update();
         if (noise_counter == noise_limit)
             break;
 
@@ -328,9 +331,9 @@ void generate_partitions_stream(unsigned long TOTAL_NUMBERS, double K, int L, in
     }
 
     std::cout << "\nLeft out sources = " << left_out_sources.size() << std::endl;
-    progressbar bar_leftout(left_out_sources.size());
-    bar_leftout.set_todo_char(" ");
-    bar_leftout.set_done_char("█");
+//    progressbar bar_leftout(left_out_sources.size());
+//    bar_leftout.set_todo_char(" ");
+//    bar_leftout.set_done_char("█");
     std::cout << "Now re-drawing for left out with increased tries\n";
     // we potentially have left out sources
     // loop through them again and try another set of random jumps
@@ -387,7 +390,7 @@ void generate_partitions_stream(unsigned long TOTAL_NUMBERS, double K, int L, in
                 l_values.push_back(abs(int(r - i)));
 
                 // we can break out of the loop
-                bar_leftout.update();
+//                bar_leftout.update();
                 break;
             }
         }
@@ -397,7 +400,7 @@ void generate_partitions_stream(unsigned long TOTAL_NUMBERS, double K, int L, in
         if (!found)
         {
             ++it;
-            bar_leftout.update();
+//            bar_leftout.update();
         }
 
         
@@ -406,9 +409,9 @@ void generate_partitions_stream(unsigned long TOTAL_NUMBERS, double K, int L, in
     std::cout << "Left out sources after increased jumps = " << left_out_sources.size() << std::endl;
 
     std::cout<<"Now trying Brute force\n";
-    progressbar bar_brute(left_out_sources.size());
-    bar_brute.set_todo_char(" ");
-    bar_brute.set_done_char("█");
+//    progressbar bar_brute(left_out_sources.size());
+//    bar_brute.set_todo_char(" ");
+//    bar_brute.set_done_char("█");
 
     // now let us give one final try with brute force
     for (auto iter = left_out_sources.begin(); iter != left_out_sources.end();)
@@ -522,7 +525,7 @@ void generate_partitions_stream(unsigned long TOTAL_NUMBERS, double K, int L, in
                 found = true;
 
                 l_values.push_back(abs(int(r - position)));
-                bar_brute.update();
+//                bar_brute.update();
 
                 // we can break out of the loop
                 break;
@@ -532,7 +535,7 @@ void generate_partitions_stream(unsigned long TOTAL_NUMBERS, double K, int L, in
         // else, the erase operation would have automatically moved the iterator ahead
         if (!found)
         {
-            bar_brute.update();
+//            bar_brute.update();
             ++iter;
         }
     }
@@ -547,12 +550,12 @@ void generate_partitions_stream(unsigned long TOTAL_NUMBERS, double K, int L, in
     double median_l = findMedian(l_values, l_values.size());
     std::cout << "Median L = " << median_l << std::endl;
 
-    std::ofstream myfile1(outputFile);
-    for (unsigned long j = 0; j < TOTAL_NUMBERS; j++)
-    {
-        myfile1 << array[j] << "," << std::string(payload_size, 'a' + (rand() % 26)) << std::endl;
-    }
-    myfile1.close();
+//    std::ofstream myfile1(outputFile);
+//    for (unsigned long j = 0; j < TOTAL_NUMBERS; j++)
+//    {
+//        myfile1 << array[j] << "," << std::string(payload_size, 'a' + (rand() % 26)) << std::endl;
+//    }
+//    myfile1.close();
 }
 
 void generate_one_file(unsigned long pTOTAL_NUMBERS, double k, int l, int pseed, std::string &outputFile, double alpha, double beta, int payload_size)
@@ -569,53 +572,16 @@ void generate_one_file(unsigned long pTOTAL_NUMBERS, double k, int l, int pseed,
 
 int main(int argc, char **argv)
 {
-    args::ArgumentParser parser("Sortedness workload generator.");
+    unsigned long totalNumbers = 16000000;
+    int k = 50;
+    // since we are using rand() function, we only have to take l as an int
+    int L = 50;
+    int seedValue = 1234;
+    std::string outputFile = "results.csv";
+    double alpha = 1;
+    double beta = 1;
+    int payload_size = 252;
 
-    args::Group group(parser, "These arguments are REQUIRED:", args::Group::Validators::All);
-    args::ValueFlag<unsigned long> total_numbers_cmd(group, "N", "Total number of entries to generate", {'N', "total_entries"});
-    args::ValueFlag<int> k_cmd(group, "K", "% of out of order entries", {'K', "k_pt"});
-    args::ValueFlag<int> l_cmd(group, "L", "Maximum displacement of entries as %", {'L', "l_pt"});
-    args::ValueFlag<int> seed_cmd(group, "S", "Seed Value", {'S', "seed"});
-    args::ValueFlag<std::string> path_cmd(group, "output_file", "Output file", {'o'});
-    args::ValueFlag<double> alpha_cmd(group, "a", "Alpha Value", {'a', "alpha"});
-    args::ValueFlag<double> beta_cmd(group, "b", "Beta Value", {'b', "beta"});
-    args::ValueFlag<int> payload_cmd(group, "P", "Payload Size in Bytes", {'P'});
-
-    try
-    {
-        parser.ParseCLI(argc, argv);
-        unsigned long totalNumbers = args::get(total_numbers_cmd);
-        int k = args::get(k_cmd);
-        // since we are using rand() function, we only have to take l as an int
-        int L = args::get(l_cmd);
-        int seedValue = args::get(seed_cmd);
-        std::string outputFile = args::get(path_cmd);
-        double alpha = args::get(alpha_cmd);
-        double beta = args::get(beta_cmd);
-        int payload_size = args::get(payload_cmd);
-
-        std::srand(seedValue);
-        // fix K for new definition
-        double K = k / 2.0;
-
-        generate_one_file(totalNumbers, K, L, seedValue, outputFile, alpha, beta, payload_size);
-    }
-    catch (args::Help &)
-    {
-        std::cout << parser;
-        return 0;
-    }
-    catch (args::ParseError &e)
-    {
-        std::cerr << e.what() << std::endl;
-        std::cerr << parser;
-        return 1;
-    }
-    catch (args::ValidationError &e)
-    {
-        std::cerr << e.what() << std::endl;
-        std::cerr << parser;
-        return 1;
-    }
+    generate_one_file(totalNumbers, k, L, seedValue, outputFile, alpha, beta, payload_size);
     return 0;
 }

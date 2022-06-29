@@ -60,7 +60,7 @@ elif [ $DB == "MONETDB" ]; then
 elif [ $DB == "MYSQL" ]; then
   DB_INIT=mysql_init.sql
 fi
-LOG_FILE=/dev/null
+LOG_FILE=$WORKLOAD.log
 WORKLOAD_FILE=$WORKLOAD.csv
 
 # first remove files if it exists so we don't mess up statements
