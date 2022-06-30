@@ -551,7 +551,12 @@ void generate_partitions_stream(unsigned long TOTAL_NUMBERS, double k, int L, in
     std::ofstream myfile1(outputFile);
     for (unsigned long j = 0; j < TOTAL_NUMBERS; j++)
     {
-        myfile1 << array[j] << "," << std::string(payload_size, 'a' + (rand() % 26)) << std::endl;
+	if(payload_size == 0)
+	{
+	   myfile1 << array[j] << std::endl;
+	}	
+	else
+       	   myfile1 << array[j] << "," << std::string(payload_size, 'a' + (rand() % 26)) << std::endl;
     }
     myfile1.close();
 }
