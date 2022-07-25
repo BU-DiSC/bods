@@ -142,8 +142,8 @@ if [ $DB == "POSTGRES" ]; then
   OPERATIONS_TIME=$(/usr/bin/time -f "%E" psql -U postgres -f $OPERATIONS 2>&1 >>$LOG_FILE)
 elif [ $DB == "MONETDB" ]; then
   mclient -d db <$DB_INIT >$LOG_FILE
-  PRELOAD_TIME=$(/usr/bin/time -f "%E" mclient -d db <$PRELOAD 2>&1 >>$LOG_FILE)
-  OPERATIONS_TIME=$(/usr/bin/time -f "%E" mclient -d db <$OPERATIONS 2>&1 >>$LOG_FILE)
+  PRELOAD_TIME=$(/usr/bin/time -f "%E" mclient -a -d db <$PRELOAD 2>&1 >>$LOG_FILE)
+  OPERATIONS_TIME=$(/usr/bin/time -f "%E" mclient -a -d db <$OPERATIONS 2>&1 >>$LOG_FILE)
 elif [ $DB == "MYSQL" ]; then
   mysql sortedness_benchmark <$DB_INIT >$LOG_FILE
   PRELOAD_TIME=$(/usr/bin/time -f "%E" mysql --local-infile=1 sortedness_benchmark <$PRELOAD 2>&1 >>$LOG_FILE)
