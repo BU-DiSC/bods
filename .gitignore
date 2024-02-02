@@ -72,3 +72,6 @@ workloads/
 
 # build folders
 build
+*.txt
+src/sortedness_data_generator
+workloads/
