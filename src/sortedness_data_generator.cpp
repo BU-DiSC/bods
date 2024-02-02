@@ -147,9 +147,8 @@ void generate_partitions_stream(unsigned long TOTAL_NUMBERS,
   std::unordered_set<unsigned long> left_out_sources;
   unsigned long w = 0;
 
-  spdlog::info("L% = {}", L);
-  spdlog::info("L absolute = {}", l_absolute);
-  spdlog::info("No. of Required Swaps = {}", desired_num_sources);
+  spdlog::info("max displacement (L) = {}", l_absolute);
+  spdlog::info("# required swaps = {}", desired_num_sources);
 
   unsigned long min_l = l_absolute, max_l = 0;
 
@@ -161,8 +160,6 @@ void generate_partitions_stream(unsigned long TOTAL_NUMBERS,
     prev_value = array[i];
   }
 
-  spdlog::info("Starting to generate sources...");
-
   // generate desired_num_sources number of unique random numbers
   int ctr = 0;
   std::default_random_engine e(seed);
@@ -172,7 +169,7 @@ void generate_partitions_stream(unsigned long TOTAL_NUMBERS,
   std::vector<unsigned long> v =
       unique_randoms(TOTAL_NUMBERS, desired_num_sources);
   std::unordered_set<unsigned long> source_set(v.begin(), v.end());
-  spdlog::info("Generated number of sources: {}", source_set.size());
+  spdlog::info("Generated # sources = {}", source_set.size());
 
   // We first ensure that the max displacement is L for at least one swap.
   unsigned long generated_source;
@@ -228,10 +225,13 @@ void generate_partitions_stream(unsigned long TOTAL_NUMBERS,
     break;
   }
 
+#if defined SPDLOG_LEVEL_TRACE && defined SPDLOG_ACTIVE_LEVEL
   if (generated_with_max_displacement)
-    spdlog::info("We now have at least one element with L displacement...");
+    spdlog::trace("Displaced at least one entry by {} positions...",
+                  l_absolute);
 
-  spdlog::info("Starting swaps in data...");
+  spdlog::trace("Starting swaps in data...");
+#endif
 
   for (unsigned long i : source_set) {
     // check if this position is already the first generated source
@@ -278,11 +278,13 @@ void generate_partitions_stream(unsigned long TOTAL_NUMBERS,
     if (noise_counter == desired_num_sources) break;
   }
 
-  spdlog::info("Swaps completed: {}", noise_counter);
+  spdlog::info("Swaps completed in first attempt: {}", noise_counter);
   spdlog::info("Left out sources: {}", left_out_sources.size());
 
+#ifdef SPDLOG_LEVEL_TRACE
   if (left_out_sources.size() > 0)
     spdlog::info("Now re-drawing for left out with increased tries...");
+#endif
   // we potentially have left out sources
   // loop through them again and try another set of random jumps
   for (auto it = left_out_sources.begin(); it != left_out_sources.end();) {
@@ -340,9 +342,12 @@ void generate_partitions_stream(unsigned long TOTAL_NUMBERS,
   }
 
   if (left_out_sources.size() > 0) {
-    spdlog::info("Left out sources after increased jumps = {}",
-                 left_out_sources.size());
+    spdlog::critical(
+        "Left out sources after re-trying with increased jumps = {}",
+        left_out_sources.size());
+#ifdef SPDLOG_LEVEL_TRACE
     spdlog::info("Now trying Brute force...");
+#endif
   }
 
   // now let us give one final try with brute force
@@ -358,7 +363,6 @@ void generate_partitions_stream(unsigned long TOTAL_NUMBERS,
     // start position should usually be (position - l) and end should be
     // (position + l)
     //  however, we need to check for edge cases
-
     float ran = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
 
     bool move_forward = true;
@@ -444,11 +448,13 @@ void generate_partitions_stream(unsigned long TOTAL_NUMBERS,
   }
 
   if (left_out_sources.size() > 0) {
-    spdlog::info("Left out sources after brute force = {}",
-                 left_out_sources.size());
+    spdlog::critical("Left out sources after brute force = {}",
+                     left_out_sources.size());
   }
 
-  spdlog::info("Final Statistics:");
+  spdlog::info(
+      "*******************************************************\n\t\t\t\tFinal "
+      "Statistics:");
   spdlog::info("Swaps made = {}", noise_counter);
   spdlog::info("Min L = {}", min_l);
   spdlog::info("Max L = {}", max_l);

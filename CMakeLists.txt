@@ -34,6 +34,9 @@ set(BODS_SRCS
     src/sortedness_data_generator.cpp
 )
 
+set(CXXFLAGS "-LSPDLOG_ACTIVE_LEVEL -LSPDLOG_LEVEL_TRACE")
+set(CMAKE_CXX_FLAGS "${CXXFLAGS}")
+
 add_executable(sortedness_data_generator ${BODS_SRCS})
 
 target_include_directories(sortedness_data_generator PUBLIC
