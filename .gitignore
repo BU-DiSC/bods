@@ -75,3 +75,6 @@ build
 *.txt
 src/sortedness_data_generator
 workloads/
+
+# IDE stuff
+.vscode/*
