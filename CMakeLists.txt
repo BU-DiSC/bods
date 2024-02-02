@@ -38,6 +38,7 @@ add_executable(sortedness_data_generator ${BODS_SRCS})
 
 target_include_directories(sortedness_data_generator PUBLIC
     ${PROJECT_SOURCE_DIR}/src
+    ${PROJECT_SOURCE_DIR}/external
 )
 
 target_link_libraries(sortedness_data_generator PUBLIC
