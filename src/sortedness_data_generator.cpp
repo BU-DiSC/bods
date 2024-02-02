@@ -120,7 +120,7 @@ double findMedian(std::vector<long> a, int n)
     Each partition of L elements is shuffled, and has some noise (randomness) linked to the
     percent_outRange parameter.
     */
-void generate_partitions_stream(unsigned long TOTAL_NUMBERS, double k, int L, int seed, std::string &outputFile, double alpha = 1.0, double beta = 1.0, int payload_size = 252)
+void generate_partitions_stream(unsigned long TOTAL_NUMBERS, unsigned long domain_right, int window_size, double k, int L, int seed, std::string &outputFile, double alpha = 1.0, double beta = 1.0, int payload_size = 252)
 {
     std::srand(seed);
     // fix K for new definition
@@ -139,7 +139,6 @@ void generate_partitions_stream(unsigned long TOTAL_NUMBERS, double k, int L, in
     std::unordered_set<unsigned long> swaps;
     std::unordered_set<unsigned long> left_out_sources;
     unsigned long w = 0;
-    unsigned long windowSize = 1;
 
     std::cout << "L% = " << L << std::endl;
     std::cout << "L absolute = " << l_absolute << std::endl;
@@ -148,9 +147,11 @@ void generate_partitions_stream(unsigned long TOTAL_NUMBERS, double k, int L, in
 
     std::vector<long> l_values;
 
-    for (unsigned long i = 0; i < TOTAL_NUMBERS; i++, w += windowSize)
+    unsigned long prev_value = 0;
+    for (unsigned long i = 0; i < TOTAL_NUMBERS; i++)
     {
-        array[i] = i;
+        array[i] = prev_value + window_size;
+        prev_value = array[i];
     }
 
     std::cout << "Generating sources: ";
@@ -561,9 +562,9 @@ void generate_partitions_stream(unsigned long TOTAL_NUMBERS, double k, int L, in
     myfile1.close();
 }
 
-void generate_one_file(unsigned long pTOTAL_NUMBERS, double k, int l, int pseed, std::string &outputFile, double alpha, double beta, int payload_size)
+void generate_one_file(unsigned long pTOTAL_NUMBERS, unsigned long domain_right, int window_size, double k, int l, int pseed, std::string &outputFile, double alpha, double beta, int payload_size)
 {
-    generate_partitions_stream(pTOTAL_NUMBERS, k, l, pseed, outputFile, alpha, beta, payload_size);
+    generate_partitions_stream(pTOTAL_NUMBERS, domain_right, window_size, k, l, pseed, outputFile, alpha, beta, payload_size);
 
     std::ofstream dataledger("dataledger.txt", std::ios_base::app);
     dataledger << outputFile << std::endl;
@@ -586,6 +587,8 @@ int main(int argc, char **argv)
     args::ValueFlag<double> alpha_cmd(group, "a", "Alpha Value", {'a', "alpha"});
     args::ValueFlag<double> beta_cmd(group, "b", "Beta Value", {'b', "beta"});
     args::ValueFlag<int> payload_cmd(group, "P", "Payload Size in Bytes", {'P'});
+    args::ValueFlag<int> domain_cmd(group, "D", "Domain size (end from 0)", {'D'});
+    args::ValueFlag<int> windowsize_cmd(group, "W", "Window size", {'W'});
 
     try
     {
@@ -598,9 +601,16 @@ int main(int argc, char **argv)
         std::string outputFile = args::get(path_cmd);
         double alpha = args::get(alpha_cmd);
         double beta = args::get(beta_cmd);
+        unsigned long domain_right = args::get(domain_cmd);
+        int window_size = args::get(windowsize_cmd);
         int payload_size = args::get(payload_cmd);
 
-        generate_one_file(totalNumbers, K, L, seedValue, outputFile, alpha, beta, payload_size);
+        if ((window_size * totalNumbers) > domain_right) {
+            std::cerr << "Window size too large for domain and total entries" << std::endl;
+            return 1;
+        }
+
+        generate_one_file(totalNumbers, domain_right, window_size, K, L, seedValue, outputFile, alpha, beta, payload_size);
     }
     catch (args::Help &)
     {
