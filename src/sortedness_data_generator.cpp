@@ -156,7 +156,8 @@ void generate_partitions_stream(unsigned long TOTAL_NUMBERS,
 
   unsigned long prev_value = 0;
   for (unsigned long i = 0; i < TOTAL_NUMBERS; i++) {
-    array[i] = prev_value + window_size;
+    // generate random number between 1 and window_size and add it to prev_value
+    array[i] = prev_value + (rand() % window_size) + 1;
     prev_value = array[i];
   }
 
