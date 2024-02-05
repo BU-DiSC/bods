@@ -126,8 +126,8 @@ std::vector<unsigned long> unique_randoms(unsigned long n, unsigned long t) {
    some noise (randomness) linked to the percent_outRange parameter.
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 */
 void generate_partitions_stream(unsigned long TOTAL_NUMBERS,
-                                unsigned long domain_right, int window_size, bool fixed_window,
-                                double k, int L, int seed,
+                                unsigned long domain_right, int window_size,
+                                bool fixed_window, double k, int L, int seed,
                                 std::string &outputFile, double alpha = 1.0,
                                 double beta = 1.0, int payload_size = 252) {
   std::srand(seed);
@@ -159,7 +159,7 @@ void generate_partitions_stream(unsigned long TOTAL_NUMBERS,
     // generate random number between 1 and window_size and add it to prev_value
     if (fixed_window) {
       array[i] = prev_value + window_size;
-    } else{
+    } else {
       array[i] = prev_value + (rand() % window_size) + 1;
     }
     prev_value = array[i];
@@ -467,11 +467,12 @@ void generate_partitions_stream(unsigned long TOTAL_NUMBERS,
 }
 
 void generate_one_file(unsigned long pTOTAL_NUMBERS, unsigned long domain_right,
-                       int window_size, bool fixed_window, double k, int l, int pseed,
-                       std::string &outputFile, double alpha, double beta,
-                       int payload_size) {
-  generate_partitions_stream(pTOTAL_NUMBERS, domain_right, window_size, fixed_window, k, l,
-                             pseed, outputFile, alpha, beta, payload_size);
+                       int window_size, bool fixed_window, double k, int l,
+                       int pseed, std::string &outputFile, double alpha,
+                       double beta, int payload_size) {
+  generate_partitions_stream(pTOTAL_NUMBERS, domain_right, window_size,
+                             fixed_window, k, l, pseed, outputFile, alpha, beta,
+                             payload_size);
 
   std::ofstream dataledger("dataledger.txt", std::ios_base::app);
   dataledger << outputFile << std::endl;
@@ -527,8 +528,8 @@ int main(int argc, char **argv) {
       return 1;
     }
 
-    generate_one_file(totalNumbers, domain_right, window_size, fixed_window, K, L, seedValue,
-                      outputFile, alpha, beta, payload_size);
+    generate_one_file(totalNumbers, domain_right, window_size, fixed_window, K,
+                      L, seedValue, outputFile, alpha, beta, payload_size);
   } catch (args::Help &) {
     std::cout << parser;
     return 0;
