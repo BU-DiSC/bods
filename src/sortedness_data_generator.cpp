@@ -126,6 +126,7 @@ std::vector<unsigned long> unique_randoms(unsigned long n, unsigned long t) {
    some noise (randomness) linked to the percent_outRange parameter.
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 */
 void generate_partitions_stream(unsigned long TOTAL_NUMBERS,
+                                unsigned long start_index,
                                 unsigned long domain_right, int window_size,
                                 bool fixed_window, double k, double L, int seed,
                                 std::string &outputFile, double alpha = 1.0,
@@ -147,6 +148,7 @@ void generate_partitions_stream(unsigned long TOTAL_NUMBERS,
   std::unordered_set<unsigned long> left_out_sources;
   unsigned long w = 0;
 
+  spdlog::info("start index = {}", start_index);
   spdlog::info("max displacement (L) = {}", l_absolute);
   spdlog::info("# required swaps = {}", desired_num_sources);
 
@@ -154,7 +156,7 @@ void generate_partitions_stream(unsigned long TOTAL_NUMBERS,
 
   std::vector<long> l_values;
 
-  unsigned long prev_value = 0;
+  unsigned long prev_value = start_index;
   for (unsigned long i = 0; i < TOTAL_NUMBERS; i++) {
     // generate random number between 1 and window_size and add it to prev_value
     if (fixed_window) {
@@ -466,13 +468,14 @@ void generate_partitions_stream(unsigned long TOTAL_NUMBERS,
   myfile1.close();
 }
 
-void generate_one_file(unsigned long pTOTAL_NUMBERS, unsigned long domain_right,
-                       int window_size, bool fixed_window, double k, double l,
-                       int pseed, std::string &outputFile, double alpha,
-                       double beta, int payload_size) {
-  generate_partitions_stream(pTOTAL_NUMBERS, domain_right, window_size,
-                             fixed_window, k, l, pseed, outputFile, alpha, beta,
-                             payload_size);
+void generate_one_file(unsigned long pTOTAL_NUMBERS, unsigned long start_index,
+                       unsigned long domain_right, int window_size,
+                       bool fixed_window, double k, double l, int pseed,
+                       std::string &outputFile, double alpha, double beta,
+                       int payload_size) {
+  generate_partitions_stream(pTOTAL_NUMBERS, start_index, domain_right,
+                             window_size, fixed_window, k, l, pseed, outputFile,
+                             alpha, beta, payload_size);
 
   std::ofstream dataledger("dataledger.txt", std::ios_base::app);
   dataledger << outputFile << std::endl;
@@ -481,13 +484,15 @@ void generate_one_file(unsigned long pTOTAL_NUMBERS, unsigned long domain_right,
 
 // arguments to program:
 // unsigned long pTOTAL_NUMBERS, unsigned int pdomain, unsigned long windowSize,
-// short k, int pseed
+// short k, int pseed,
 
 int main(int argc, char **argv) {
   args::ArgumentParser parser("Sortedness workload generator.");
 
   args::Group group(
       parser, "These arguments are REQUIRED:", args::Group::Validators::All);
+  args::Group optional_group(parser, "These arguments are OPTIONAL:",
+                             args::Group::Validators::DontCare);
   args::ValueFlag<unsigned long> total_numbers_cmd(
       group, "N", "Total number of entries to generate",
       {'N', "total_entries"});
@@ -506,6 +511,8 @@ int main(int argc, char **argv) {
   args::ValueFlag<int> windowsize_cmd(group, "W", "Window size",
                                       {'W', "window"});
   args::Flag windowfixed_cmd(group, "F", "Fixed window size", {'F', "fixed"});
+  args::ValueFlag<unsigned long> start_index_cmd(optional_group, "I",
+                                                 "Start Index", {'I', "start"});
 
   try {
     parser.ParseCLI(argc, argv);
@@ -521,6 +528,8 @@ int main(int argc, char **argv) {
     int window_size = args::get(windowsize_cmd);
     int payload_size = args::get(payload_cmd);
     bool fixed_window = args::get(windowfixed_cmd);
+    unsigned long start_index =
+        args::get(start_index_cmd);  // defaults to zero if not provided
 
     if ((window_size * totalNumbers) > domain_right) {
       std::cerr << "Window size too large for domain and total entries"
@@ -528,8 +537,9 @@ int main(int argc, char **argv) {
       return 1;
     }
 
-    generate_one_file(totalNumbers, domain_right, window_size, fixed_window, K,
-                      L, seedValue, outputFile, alpha, beta, payload_size);
+    generate_one_file(totalNumbers, start_index, domain_right, window_size,
+                      fixed_window, K, L, seedValue, outputFile, alpha, beta,
+                      payload_size);
   } catch (args::Help &) {
     std::cout << parser;
     return 0;
