@@ -127,7 +127,7 @@ std::vector<unsigned long> unique_randoms(unsigned long n, unsigned long t) {
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 */
 void generate_partitions_stream(unsigned long TOTAL_NUMBERS,
                                 unsigned long domain_right, int window_size,
-                                double k, int L, int seed,
+                                bool fixed_window, double k, int L, int seed,
                                 std::string &outputFile, double alpha = 1.0,
                                 double beta = 1.0, int payload_size = 252) {
   std::srand(seed);
@@ -156,7 +156,12 @@ void generate_partitions_stream(unsigned long TOTAL_NUMBERS,
 
   unsigned long prev_value = 0;
   for (unsigned long i = 0; i < TOTAL_NUMBERS; i++) {
-    array[i] = prev_value + window_size;
+    // generate random number between 1 and window_size and add it to prev_value
+    if (fixed_window) {
+      array[i] = prev_value + window_size;
+    } else {
+      array[i] = prev_value + (rand() % window_size) + 1;
+    }
     prev_value = array[i];
   }
 
@@ -462,11 +467,12 @@ void generate_partitions_stream(unsigned long TOTAL_NUMBERS,
 }
 
 void generate_one_file(unsigned long pTOTAL_NUMBERS, unsigned long domain_right,
-                       int window_size, double k, int l, int pseed,
-                       std::string &outputFile, double alpha, double beta,
-                       int payload_size) {
-  generate_partitions_stream(pTOTAL_NUMBERS, domain_right, window_size, k, l,
-                             pseed, outputFile, alpha, beta, payload_size);
+                       int window_size, bool fixed_window, double k, int l,
+                       int pseed, std::string &outputFile, double alpha,
+                       double beta, int payload_size) {
+  generate_partitions_stream(pTOTAL_NUMBERS, domain_right, window_size,
+                             fixed_window, k, l, pseed, outputFile, alpha, beta,
+                             payload_size);
 
   std::ofstream dataledger("dataledger.txt", std::ios_base::app);
   dataledger << outputFile << std::endl;
@@ -497,7 +503,9 @@ int main(int argc, char **argv) {
   args::ValueFlag<int> payload_cmd(group, "P", "Payload Size in Bytes", {'P'});
   args::ValueFlag<int> domain_cmd(group, "D", "Domain size (end from 0)",
                                   {'D'});
-  args::ValueFlag<int> windowsize_cmd(group, "W", "Window size", {'W'});
+  args::ValueFlag<int> windowsize_cmd(group, "W", "Window size",
+                                      {'W', "window"});
+  args::Flag windowfixed_cmd(group, "F", "Fixed window size", {'F', "fixed"});
 
   try {
     parser.ParseCLI(argc, argv);
@@ -512,6 +520,7 @@ int main(int argc, char **argv) {
     unsigned long domain_right = args::get(domain_cmd);
     int window_size = args::get(windowsize_cmd);
     int payload_size = args::get(payload_cmd);
+    bool fixed_window = args::get(windowfixed_cmd);
 
     if ((window_size * totalNumbers) > domain_right) {
       std::cerr << "Window size too large for domain and total entries"
@@ -519,8 +528,8 @@ int main(int argc, char **argv) {
       return 1;
     }
 
-    generate_one_file(totalNumbers, domain_right, window_size, K, L, seedValue,
-                      outputFile, alpha, beta, payload_size);
+    generate_one_file(totalNumbers, domain_right, window_size, fixed_window, K,
+                      L, seedValue, outputFile, alpha, beta, payload_size);
   } catch (args::Help &) {
     std::cout << parser;
     return 0;
