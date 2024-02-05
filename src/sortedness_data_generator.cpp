@@ -127,7 +127,7 @@ std::vector<unsigned long> unique_randoms(unsigned long n, unsigned long t) {
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 */
 void generate_partitions_stream(unsigned long TOTAL_NUMBERS,
                                 unsigned long domain_right, int window_size,
-                                bool fixed_window, double k, int L, int seed,
+                                bool fixed_window, double k, double L, int seed,
                                 std::string &outputFile, double alpha = 1.0,
                                 double beta = 1.0, int payload_size = 252) {
   std::srand(seed);
@@ -467,7 +467,7 @@ void generate_partitions_stream(unsigned long TOTAL_NUMBERS,
 }
 
 void generate_one_file(unsigned long pTOTAL_NUMBERS, unsigned long domain_right,
-                       int window_size, bool fixed_window, double k, int l,
+                       int window_size, bool fixed_window, double k, double l,
                        int pseed, std::string &outputFile, double alpha,
                        double beta, int payload_size) {
   generate_partitions_stream(pTOTAL_NUMBERS, domain_right, window_size,
@@ -491,10 +491,10 @@ int main(int argc, char **argv) {
   args::ValueFlag<unsigned long> total_numbers_cmd(
       group, "N", "Total number of entries to generate",
       {'N', "total_entries"});
-  args::ValueFlag<int> k_cmd(group, "K", "% of out of order entries",
-                             {'K', "k_pt"});
-  args::ValueFlag<int> l_cmd(group, "L", "Maximum displacement of entries as %",
-                             {'L', "l_pt"});
+  args::ValueFlag<double> k_cmd(group, "K", "% of out of order entries",
+                                {'K', "k_pt"});
+  args::ValueFlag<double> l_cmd(
+      group, "L", "Maximum displacement of entries as %", {'L', "l_pt"});
   args::ValueFlag<int> seed_cmd(group, "S", "Seed Value", {'S', "seed"});
   args::ValueFlag<std::string> path_cmd(group, "output_file", "Output file",
                                         {'o'});
@@ -510,9 +510,9 @@ int main(int argc, char **argv) {
   try {
     parser.ParseCLI(argc, argv);
     unsigned long totalNumbers = args::get(total_numbers_cmd);
-    int K = args::get(k_cmd);
+    double K = args::get(k_cmd);
     // since we are using rand() function, we only have to take l as an int
-    int L = args::get(l_cmd);
+    double L = args::get(l_cmd);
     int seedValue = args::get(seed_cmd);
     std::string outputFile = args::get(path_cmd);
     double alpha = args::get(alpha_cmd);
