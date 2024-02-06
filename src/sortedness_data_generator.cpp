@@ -1,7 +1,10 @@
+#include <spdlog/spdlog.h>
+
 #include <algorithm>
 #include <boost/math/distributions.hpp>
 #include <cassert>
 #include <cmath>
+#include <cxxopts.hpp>
 #include <fstream>
 #include <iostream>
 #include <random>
@@ -10,7 +13,6 @@
 #include <vector>
 
 #include "args.hxx"
-#include "spdlog/spdlog.h"
 
 using namespace boost::math;
 
