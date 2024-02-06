@@ -1,7 +1,10 @@
+#include <spdlog/spdlog.h>
+
 #include <algorithm>
 #include <boost/math/distributions.hpp>
 #include <cassert>
 #include <cmath>
+#include <cxxopts.hpp>
 #include <fstream>
 #include <iostream>
 #include <random>
@@ -9,10 +12,78 @@
 #include <unordered_set>
 #include <vector>
 
-#include "args.hxx"
-#include "spdlog/spdlog.h"
-
 using namespace boost::math;
+
+struct BoDSConfig {
+    unsigned long totalNumbers;
+    double K;
+    double L;
+    int seedValue;
+    std::string outputFile;
+    double alpha;
+    double beta;
+    unsigned long domain_right;
+    int window_size;
+    int payload_size;
+    bool fixed_window;
+    unsigned long start_index;
+};
+
+BoDSConfig parse_args(int argc, char *argv[]) {
+    BoDSConfig config;
+    cxxopts::Options options("bods", "BoDS: Benchmark on Data Sortedness");
+    try {
+        options.add_options()("N,total_entries",
+                              "Total number of entries to generate",
+                              cxxopts::value<unsigned long>())(
+            "K,k_pt", "% of out of order entries", cxxopts::value<double>())(
+            "L,l_pt", "Maximum displacement of entries as %",
+            cxxopts::value<double>())("S,seed", "Seed Value",
+                                      cxxopts::value<int>())(
+            "O,output_file", "Output file", cxxopts::value<std::string>())(
+            "a,alpha", "Alpha Value", cxxopts::value<double>())(
+            "b,beta", "Beta Value", cxxopts::value<double>())(
+            "D,domain", "Domain size (end from 0)",
+            cxxopts::value<unsigned long>())("W,window", "Window size",
+                                             cxxopts::value<int>())(
+            "F,fixed", "Fixed window size",
+            cxxopts::value<bool>()->default_value("false"))(
+            "P,payload", "Payload Size in Bytes", cxxopts::value<int>())(
+            "I,start", "Start Index",
+            cxxopts::value<unsigned long>()->default_value("0"));
+        auto result = options.parse(argc, argv);
+        if (result.count("help")) {
+            std::cout << options.help() << std::endl;
+            exit(0);
+        }
+        if (result.count("total_entries") == 0 || result.count("k_pt") == 0 ||
+            result.count("l_pt") == 0 || result.count("seed") == 0 ||
+            result.count("output_file") == 0 || result.count("alpha") == 0 ||
+            result.count("beta") == 0 || result.count("domain") == 0 ||
+            result.count("window") == 0 || result.count("payload") == 0) {
+            std::cerr << "Missing required arguments" << std::endl;
+            std::cerr << options.help() << std::endl;
+            exit(1);
+        }
+        config.totalNumbers = result["total_entries"].as<unsigned long>();
+        config.K = result["k_pt"].as<double>();
+        config.L = result["l_pt"].as<double>();
+        config.seedValue = result["seed"].as<int>();
+        config.outputFile = result["output_file"].as<std::string>();
+        config.alpha = result["alpha"].as<double>();
+        config.beta = result["beta"].as<double>();
+        config.domain_right = result["domain"].as<unsigned long>();
+        config.window_size = result["window"].as<int>();
+        config.payload_size = result["payload"].as<int>();
+        config.fixed_window = result["fixed"].as<bool>();
+        config.start_index = result["start"].as<unsigned long>();
+    } catch (const std::exception &e) {
+        std::cerr << "Error parsing options: " << e.what() << std::endl;
+        std::cerr << options.help() << std::endl;
+        exit(1);
+    }
+    return config;
+}
 
 unsigned long generate_beta_random_in_range(long position,
                                             unsigned long Total_Numbers, int L,
@@ -119,18 +190,11 @@ std::vector<unsigned long> unique_randoms(unsigned long n, unsigned long t) {
     return arr;
 }
 
-/*
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                Function which generates uniform data over some
-                                                                 domain, and
-   write it in binary format. Each partition of L elements is shuffled, and has
-   some noise (randomness) linked to the percent_outRange parameter.
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                */
-void generate_partitions_stream(unsigned long TOTAL_NUMBERS,
-                                unsigned long start_index,
-                                unsigned long domain_right, int window_size,
-                                bool fixed_window, double k, double L, int seed,
-                                std::string &outputFile, double alpha = 1.0,
-                                double beta = 1.0, int payload_size = 252) {
+void generate_data(unsigned long TOTAL_NUMBERS, unsigned long start_index,
+                   unsigned long domain_right, int window_size,
+                   bool fixed_window, double k, double L, int seed,
+                   std::string &outputFile, double alpha = 1.0,
+                   double beta = 1.0, int payload_size = 252) {
     std::srand(seed);
     // fix K for new definition
     double K = k / 2.0;
@@ -477,18 +541,11 @@ void generate_partitions_stream(unsigned long TOTAL_NUMBERS,
     myfile1.close();
 }
 
-void generate_one_file(unsigned long pTOTAL_NUMBERS, unsigned long start_index,
-                       unsigned long domain_right, int window_size,
-                       bool fixed_window, double k, double l, int pseed,
-                       std::string &outputFile, double alpha, double beta,
-                       int payload_size) {
-    generate_partitions_stream(pTOTAL_NUMBERS, start_index, domain_right,
-                               window_size, fixed_window, k, l, pseed,
-                               outputFile, alpha, beta, payload_size);
-
-    std::ofstream dataledger("dataledger.txt", std::ios_base::app);
-    dataledger << outputFile << std::endl;
-    dataledger.close();
+void generate_one_file(BoDSConfig config) {
+    generate_data(config.totalNumbers, config.start_index, config.domain_right,
+                  config.window_size, config.fixed_window, config.K, config.L,
+                  config.seedValue, config.outputFile, config.alpha,
+                  config.beta, config.payload_size);
 }
 
 // arguments to program:
@@ -496,72 +553,12 @@ void generate_one_file(unsigned long pTOTAL_NUMBERS, unsigned long start_index,
 // short k, int pseed,
 
 int main(int argc, char **argv) {
-    args::ArgumentParser parser("Sortedness workload generator.");
-
-    args::Group group(
-        parser, "These arguments are REQUIRED:", args::Group::Validators::All);
-    args::Group optional_group(parser, "These arguments are OPTIONAL:",
-                               args::Group::Validators::DontCare);
-    args::ValueFlag<unsigned long> total_numbers_cmd(
-        group, "N", "Total number of entries to generate",
-        {'N', "total_entries"});
-    args::ValueFlag<double> k_cmd(group, "K", "% of out of order entries",
-                                  {'K', "k_pt"});
-    args::ValueFlag<double> l_cmd(
-        group, "L", "Maximum displacement of entries as %", {'L', "l_pt"});
-    args::ValueFlag<int> seed_cmd(group, "S", "Seed Value", {'S', "seed"});
-    args::ValueFlag<std::string> path_cmd(group, "output_file", "Output file",
-                                          {'o'});
-    args::ValueFlag<double> alpha_cmd(group, "a", "Alpha Value",
-                                      {'a', "alpha"});
-    args::ValueFlag<double> beta_cmd(group, "b", "Beta Value", {'b', "beta"});
-    args::ValueFlag<int> payload_cmd(group, "P", "Payload Size in Bytes",
-                                     {'P'});
-    args::ValueFlag<int> domain_cmd(group, "D", "Domain size (end from 0)",
-                                    {'D'});
-    args::ValueFlag<int> windowsize_cmd(group, "W", "Window size",
-                                        {'W', "window"});
-    args::Flag windowfixed_cmd(group, "F", "Fixed window size", {'F', "fixed"});
-    args::ValueFlag<unsigned long> start_index_cmd(
-        optional_group, "I", "Start Index", {'I', "start"});
-
-    try {
-        parser.ParseCLI(argc, argv);
-        unsigned long totalNumbers = args::get(total_numbers_cmd);
-        double K = args::get(k_cmd);
-        // since we are using rand() function, we only have to take l as an int
-        double L = args::get(l_cmd);
-        int seedValue = args::get(seed_cmd);
-        std::string outputFile = args::get(path_cmd);
-        double alpha = args::get(alpha_cmd);
-        double beta = args::get(beta_cmd);
-        unsigned long domain_right = args::get(domain_cmd);
-        int window_size = args::get(windowsize_cmd);
-        int payload_size = args::get(payload_cmd);
-        bool fixed_window = args::get(windowfixed_cmd);
-        unsigned long start_index =
-            args::get(start_index_cmd);  // defaults to zero if not provided
-
-        if ((window_size * totalNumbers) > domain_right) {
-            std::cerr << "Window size too large for domain and total entries"
-                      << std::endl;
-            return 1;
-        }
-
-        generate_one_file(totalNumbers, start_index, domain_right, window_size,
-                          fixed_window, K, L, seedValue, outputFile, alpha,
-                          beta, payload_size);
-    } catch (args::Help &) {
-        std::cout << parser;
-        return 0;
-    } catch (args::ParseError &e) {
-        std::cerr << e.what() << std::endl;
-        std::cerr << parser;
-        return 1;
-    } catch (args::ValidationError &e) {
-        std::cerr << e.what() << std::endl;
-        std::cerr << parser;
+    auto config = parse_args(argc, argv);
+    if ((config.window_size * config.totalNumbers) > config.domain_right) {
+        std::cerr << "Window size too large for domain and total entries"
+                  << std::endl;
         return 1;
     }
+    generate_one_file(config);
     return 0;
 }

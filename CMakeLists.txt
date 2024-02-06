@@ -8,6 +8,9 @@ project(bods VERSION 1.0
 )
 
 message(STATUS "CXX : ${CMAKE_CXX_COMPILER}")
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
+add_subdirectory(external)
 
 # =============================================================================
 # HEADER Options
@@ -43,4 +46,6 @@ target_include_directories(sortedness_data_generator PUBLIC
 
 target_link_libraries(sortedness_data_generator PUBLIC
     Boost::boost
+    spdlog::spdlog
+    cxxopts
 )

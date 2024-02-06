@@ -6,6 +6,9 @@
 *.lo
 *.o
 *.obj
+*.so
+*.dylib
+*.dll
 
 # Precompiled Headers
 *.gch
@@ -31,50 +34,12 @@
 *.out
 *.app
 
-
 # build folders
 build
-*.txt
 src/sortedness_data_generator
 workloads/
 # Prerequisites
 *.d
-
-# Compiled Object files
-*.slo
-*.lo
-*.o
-*.obj
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
-
-# Executables
-*.exe
-*.out
-*.app
-
-# build folders
-build
-*.txt
-src/sortedness_data_generator
-workloads/
 
 # IDE stuff
 .vscode/*
