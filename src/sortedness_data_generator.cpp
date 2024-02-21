@@ -27,6 +27,7 @@ struct BoDSConfig {
     int payload_size;
     bool fixed_window;
     unsigned long start_index;
+    bool binary;
 };
 
 BoDSConfig parse_args(int argc, char *argv[]) {
@@ -36,19 +37,26 @@ BoDSConfig parse_args(int argc, char *argv[]) {
         options.add_options()("N,total_entries",
                               "Total number of entries to generate",
                               cxxopts::value<unsigned long>())(
-            "K,k_pt", "% of out of order entries", cxxopts::value<double>())(
-            "L,l_pt", "Maximum displacement of entries as %",
-            cxxopts::value<double>())("S,seed", "Seed Value",
-                                      cxxopts::value<int>())(
             "O,output_file", "Output file", cxxopts::value<std::string>())(
-            "a,alpha", "Alpha Value", cxxopts::value<double>())(
-            "b,beta", "Beta Value", cxxopts::value<double>())(
-            "D,domain", "Domain size (end from 0)",
-            cxxopts::value<unsigned long>())("W,window", "Window size",
-                                             cxxopts::value<int>())(
+            "D,domain", "Domain size (end from 0) (default: =total_entries)",
+            cxxopts::value<unsigned long>())(
+            "K,k_pt", "% of out of order entries",
+            cxxopts::value<double>()->default_value("0"))(
+            "L,l_pt", "Maximum displacement of entries as %",
+            cxxopts::value<double>()->default_value("0"))(
+            "S,seed", "Seed Value", cxxopts::value<int>()->default_value("0"))(
+            "a,alpha", "Alpha Value",
+            cxxopts::value<double>()->default_value("0"))(
+            "b,beta", "Beta Value",
+            cxxopts::value<double>()->default_value("0"))(
+            "W,window", "Window size",
+            cxxopts::value<int>()->default_value("1"))(
             "F,fixed", "Fixed window size",
             cxxopts::value<bool>()->default_value("false"))(
-            "P,payload", "Payload Size in Bytes", cxxopts::value<int>())(
+            "B,binary", "File output binary format",
+            cxxopts::value<bool>()->default_value("false"))(
+            "P,payload", "Payload Size in Bytes",
+            cxxopts::value<int>()->default_value("0"))(
             "I,start", "Start Index",
             cxxopts::value<unsigned long>()->default_value("0"));
         auto result = options.parse(argc, argv);
@@ -56,31 +64,41 @@ BoDSConfig parse_args(int argc, char *argv[]) {
             std::cout << options.help() << std::endl;
             exit(0);
         }
-        if (result.count("total_entries") == 0 || result.count("k_pt") == 0 ||
-            result.count("l_pt") == 0 || result.count("seed") == 0 ||
-            result.count("output_file") == 0 || result.count("alpha") == 0 ||
-            result.count("beta") == 0 || result.count("domain") == 0 ||
-            result.count("window") == 0 || result.count("payload") == 0) {
+        if ((result.count("total_entries") == 0) ||
+            (result.count("output_file") == 0)) {
             std::cerr << "Missing required arguments" << std::endl;
             std::cerr << options.help() << std::endl;
             exit(1);
         }
         config.totalNumbers = result["total_entries"].as<unsigned long>();
+        if (result.count("domain") == 0) {
+            config.domain_right = config.totalNumbers;
+        } else {
+            config.domain_right = result["domain"].as<unsigned long>();
+        }
         config.K = result["k_pt"].as<double>();
         config.L = result["l_pt"].as<double>();
         config.seedValue = result["seed"].as<int>();
         config.outputFile = result["output_file"].as<std::string>();
         config.alpha = result["alpha"].as<double>();
         config.beta = result["beta"].as<double>();
-        config.domain_right = result["domain"].as<unsigned long>();
         config.window_size = result["window"].as<int>();
         config.payload_size = result["payload"].as<int>();
         config.fixed_window = result["fixed"].as<bool>();
+        config.binary = result["binary"].as<bool>();
         config.start_index = result["start"].as<unsigned long>();
     } catch (const std::exception &e) {
         std::cerr << "Error parsing options: " << e.what() << std::endl;
         std::cerr << options.help() << std::endl;
-        exit(1);
+        exit(EXIT_FAILURE);
+    }
+
+    if (config.binary && config.payload_size > 0) {
+        std::cerr << "Not implemented: binary output cannot accompany "
+                     "payload_size > 0"
+                  << std::endl;
+        std::cerr << options.help() << std::endl;
+        exit(EXIT_FAILURE);
     }
     return config;
 }
@@ -174,8 +192,8 @@ double findMedian(std::vector<long> a, int n) {
 
 std::vector<unsigned long> unique_randoms(unsigned long n, unsigned long t) {
     std::vector<unsigned long> arr(n);
-    std::iota(arr.begin(), arr.end(),
-              1);  // Fill the vector with numbers from 1 to n
+    // Fill the vector with numbers from 1 to n
+    std::iota(arr.begin(), arr.end(), 1);
 
     std::random_device rd;
     std::mt19937 g(rd());
@@ -190,11 +208,36 @@ std::vector<unsigned long> unique_randoms(unsigned long n, unsigned long t) {
     return arr;
 }
 
+void write_data_to_file(unsigned long data_len, int payload_size,
+                        std::string &file_name, unsigned long *data,
+                        bool binary = false) {
+    if (binary) {
+        std::ofstream out_file(file_name, std::ios::out | std::ios::binary);
+        out_file.write(reinterpret_cast<const char *>(data),
+                       sizeof(unsigned long) * data_len);
+        out_file.close();
+
+        return;
+    }
+    // Otherwise default to text output
+    std::ofstream myfile1(file_name);
+    for (unsigned long idx = 0; idx < data_len; idx++) {
+        if (payload_size == 0) {
+            myfile1 << data[idx] << std::endl;
+        } else
+            myfile1 << data[idx] << ","
+                    << std::string(payload_size, 'a' + (rand() % 26))
+                    << std::endl;
+    }
+    myfile1.close();
+}
+
 void generate_data(unsigned long TOTAL_NUMBERS, unsigned long start_index,
                    unsigned long domain_right, int window_size,
                    bool fixed_window, double k, double L, int seed,
                    std::string &outputFile, double alpha = 1.0,
-                   double beta = 1.0, int payload_size = 252) {
+                   double beta = 1.0, int payload_size = 252,
+                   bool binary = false) {
     std::srand(seed);
     // fix K for new definition
     double K = k / 2.0;
@@ -518,10 +561,7 @@ void generate_data(unsigned long TOTAL_NUMBERS, unsigned long start_index,
                          left_out_sources.size());
     }
 
-    spdlog::info(
-        "*******************************************************"
-        "\n\t\t\t\tFinal "
-        "Statistics:");
+    spdlog::info("************ Final Statistics:");
     spdlog::info("Swaps made = {}", noise_counter);
     spdlog::info("Min L = {}", min_l);
     spdlog::info("Max L = {}", max_l);
@@ -529,23 +569,14 @@ void generate_data(unsigned long TOTAL_NUMBERS, unsigned long start_index,
     double median_l = findMedian(l_values, l_values.size());
     spdlog::info("Median L = {}", median_l);
 
-    std::ofstream myfile1(outputFile);
-    for (unsigned long j = 0; j < TOTAL_NUMBERS; j++) {
-        if (payload_size == 0) {
-            myfile1 << array[j] << std::endl;
-        } else
-            myfile1 << array[j] << ","
-                    << std::string(payload_size, 'a' + (rand() % 26))
-                    << std::endl;
-    }
-    myfile1.close();
+    write_data_to_file(TOTAL_NUMBERS, payload_size, outputFile, array, binary);
 }
 
 void generate_one_file(BoDSConfig config) {
     generate_data(config.totalNumbers, config.start_index, config.domain_right,
                   config.window_size, config.fixed_window, config.K, config.L,
                   config.seedValue, config.outputFile, config.alpha,
-                  config.beta, config.payload_size);
+                  config.beta, config.payload_size, config.binary);
 }
 
 // arguments to program:
