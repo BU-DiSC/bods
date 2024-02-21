@@ -38,7 +38,7 @@ BoDSConfig parse_args(int argc, char *argv[]) {
                               "Total number of entries to generate",
                               cxxopts::value<unsigned long>())(
             "O,output_file", "Output file", cxxopts::value<std::string>())(
-            "D,domain", "Domain size (end from 0)",
+            "D,domain", "Domain size (end from 0) (default: =total_entries)",
             cxxopts::value<unsigned long>())(
             "K,k_pt", "% of out of order entries",
             cxxopts::value<double>()->default_value("0"))(
@@ -64,23 +64,24 @@ BoDSConfig parse_args(int argc, char *argv[]) {
             std::cout << options.help() << std::endl;
             exit(0);
         }
-        if (result.count("total_entries") == 0 || result.count("k_pt") == 0 ||
-            result.count("l_pt") == 0 || result.count("seed") == 0 ||
-            result.count("output_file") == 0 || result.count("alpha") == 0 ||
-            result.count("beta") == 0 || result.count("domain") == 0 ||
-            result.count("window") == 0 || result.count("payload") == 0) {
+        if ((result.count("total_entries") == 0) ||
+            (result.count("output_file") == 0)) {
             std::cerr << "Missing required arguments" << std::endl;
             std::cerr << options.help() << std::endl;
             exit(1);
         }
         config.totalNumbers = result["total_entries"].as<unsigned long>();
+        if (result.count("domain") == 0) {
+            config.domain_right = config.totalNumbers;
+        } else {
+            config.domain_right = result["domain"].as<unsigned long>();
+        }
         config.K = result["k_pt"].as<double>();
         config.L = result["l_pt"].as<double>();
         config.seedValue = result["seed"].as<int>();
         config.outputFile = result["output_file"].as<std::string>();
         config.alpha = result["alpha"].as<double>();
         config.beta = result["beta"].as<double>();
-        config.domain_right = result["domain"].as<unsigned long>();
         config.window_size = result["window"].as<int>();
         config.payload_size = result["payload"].as<int>();
         config.fixed_window = result["fixed"].as<bool>();
@@ -560,10 +561,7 @@ void generate_data(unsigned long TOTAL_NUMBERS, unsigned long start_index,
                          left_out_sources.size());
     }
 
-    spdlog::info(
-        "*******************************************************"
-        "\n\t\t\t\tFinal "
-        "Statistics:");
+    spdlog::info("************ Final Statistics:");
     spdlog::info("Swaps made = {}", noise_counter);
     spdlog::info("Min L = {}", min_l);
     spdlog::info("Max L = {}", max_l);
