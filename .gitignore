@@ -34,10 +34,12 @@
 *.out
 *.app
 
-# build folders
+# Repo specific
 build
 src/sortedness_data_generator
 workloads/
+.cache
+
 # Prerequisites
 *.d
 
