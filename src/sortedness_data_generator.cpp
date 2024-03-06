@@ -457,108 +457,123 @@ void generate_data(unsigned long TOTAL_NUMBERS, unsigned long start_index,
     }
 
     // now let us give one final try with brute force
-    for (auto iter = left_out_sources.begin();
-         iter != left_out_sources.end();) {
-        unsigned long position = *iter;
-        // unsigned long start = position - l_absolute;
-        // unsigned long end = position + l_absolute;
-        unsigned long start;
-        unsigned long end;
+    // but we want to avoid this if K=100% (50% swaps needed) and we are within
+    // 1% of left overs
+    if (left_out_sources.size() > 0 &&
+        !(K == 50 && left_out_sources.size() <= 0.01 * desired_num_sources)) {
+        spdlog::info("Trying Brute force swaps for left out sources...");
 
-        bool found = false;
+        for (auto iter = left_out_sources.begin();
+             iter != left_out_sources.end();) {
+            unsigned long position = *iter;
+            // unsigned long start = position - l_absolute;
+            // unsigned long end = position + l_absolute;
+            unsigned long start;
+            unsigned long end;
 
-        // start position should usually be (position - l) and end should be
-        // (position + l)
-        //  however, we need to check for edge cases
-        float ran = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
+            bool found = false;
 
-        bool move_forward = true;
+            // start position should usually be (position - l) and end should be
+            // (position + l)
+            //  however, we need to check for edge cases
+            float ran =
+                static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
 
-        if (ran < 0.5) {
-            // we move from start to end
-            // if positon - l_absolute < 0
-            if (position < l_absolute) {
-                start = 0;
+            bool move_forward = true;
+
+            if (ran < 0.5) {
+                // we move from start to end
+                // if positon - l_absolute < 0
+                if (position < l_absolute) {
+                    start = 0;
+                } else {
+                    start = position - l_absolute;
+                }
+
+                if (long(position + l_absolute) > TOTAL_NUMBERS) {
+                    end = TOTAL_NUMBERS - 1;
+                } else {
+                    end = position + l_absolute;
+                }
             } else {
-                start = position - l_absolute;
+                // we move from end to start
+                // if positon - l_absolute < 0
+                if (position < l_absolute) {
+                    end = 0;
+                } else {
+                    end = position - l_absolute;
+                }
+
+                if (long(position + l_absolute) > TOTAL_NUMBERS) {
+                    start = TOTAL_NUMBERS - 1;
+                } else {
+                    start = position + l_absolute;
+                }
+
+                move_forward = false;
             }
 
-            if (long(position + l_absolute) > TOTAL_NUMBERS) {
-                end = TOTAL_NUMBERS - 1;
-            } else {
-                end = position + l_absolute;
-            }
-        } else {
-            // we move from end to start
-            // if positon - l_absolute < 0
-            if (position < l_absolute) {
-                end = 0;
-            } else {
-                end = position - l_absolute;
+            // now, loop through from start to end
+            // we will pick the first valid swap spot
+            for (unsigned long r = start; r != end;) {
+                // if (r == position || swaps.find(r) != swaps.end() ||
+                // source_set.find(r)
+                // != source_set.end())
+                if (((L == 100) && (r == position)) ||
+                    ((L != 100) &&
+                     ((r == position) || swaps.find(r) != swaps.end() ||
+                      source_set.find(r) != source_set.end()))) {
+                    // stopping condition
+                    if (r == end) break;
+                    if (move_forward)
+                        r++;
+                    else
+                        r--;
+                    continue;
+                } else {
+                    // if we found an eligible swap
+                    swaps.insert(r);
+
+                    if (abs(int(r - position)) < min_l)
+                        min_l = abs(int(r - position));
+                    else if (abs(int(r - position)) > max_l)
+                        max_l = abs(int(r - position));
+
+                    unsigned long temp = array[position];
+                    array[position] = array[r];
+                    array[r] = temp;
+
+                    noise_counter++;
+
+                    // remove the current source from left out sources
+                    iter = left_out_sources.erase(iter);
+                    found = true;
+
+                    l_values.push_back(abs(int(r - position)));
+
+                    // we can break out of the loop
+                    break;
+                }
             }
 
-            if (long(position + l_absolute) > TOTAL_NUMBERS) {
-                start = TOTAL_NUMBERS - 1;
-            } else {
-                start = position + l_absolute;
+            // manually increment iterator only if found is false
+            // else, the erase operation would have automatically moved the
+            // iterator ahead
+            if (!found) {
+                ++iter;
             }
-
-            move_forward = false;
         }
-
-        // now, loop through from start to end
-        // we will pick the first valid swap spot
-        for (unsigned long r = start; r != end;) {
-            // if (r == position || swaps.find(r) != swaps.end() ||
-            // source_set.find(r)
-            // != source_set.end())
-            if (((L == 100) && (r == position)) ||
-                ((L != 100) &&
-                 ((r == position) || swaps.find(r) != swaps.end() ||
-                  source_set.find(r) != source_set.end()))) {
-                // stopping condition
-                if (r == end) break;
-                if (move_forward)
-                    r++;
-                else
-                    r--;
-                continue;
-            } else {
-                // if we found an eligible swap
-                swaps.insert(r);
-
-                if (abs(int(r - position)) < min_l)
-                    min_l = abs(int(r - position));
-                else if (abs(int(r - position)) > max_l)
-                    max_l = abs(int(r - position));
-
-                unsigned long temp = array[position];
-                array[position] = array[r];
-                array[r] = temp;
-
-                noise_counter++;
-
-                // remove the current source from left out sources
-                iter = left_out_sources.erase(iter);
-                found = true;
-
-                l_values.push_back(abs(int(r - position)));
-
-                // we can break out of the loop
-                break;
-            }
-        }
-        // manually increment iterator only if found is false
-        // else, the erase operation would have automatically moved the iterator
-        // ahead
-        if (!found) {
-            ++iter;
-        }
+    } else {
+        spdlog::info(
+            "Skipping brute force as we are within 1% of achieving our "
+            "desired number of swaps...");
     }
 
     if (left_out_sources.size() > 0) {
-        spdlog::critical("Left out sources after brute force = {}",
-                         left_out_sources.size());
+        spdlog::critical(
+            "Left out sources after brute force attempt (may not have "
+            "executed) = {}",
+            left_out_sources.size());
     }
 
     spdlog::info("************ Final Statistics:");
@@ -580,8 +595,8 @@ void generate_one_file(BoDSConfig config) {
 }
 
 // arguments to program:
-// unsigned long pTOTAL_NUMBERS, unsigned int pdomain, unsigned long windowSize,
-// short k, int pseed,
+// unsigned long pTOTAL_NUMBERS, unsigned int pdomain, unsigned long
+// windowSize, short k, int pseed,
 
 int main(int argc, char **argv) {
     auto config = parse_args(argc, argv);
