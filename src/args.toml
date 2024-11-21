@@ -1,0 +1,50 @@
+title = "Multiple Datastream Arguments"
+
+[global]
+partitions = 3
+domain = 50000
+
+[[partition]]
+start_index = 0
+number_of_entries = 2000
+K = 10
+L = 10
+seed = 1
+alpha = 1
+beta = 1
+payload = 0
+window_size = 1
+output_file = "../workloads/createdata1.txt"
+is_fixed = false
+is_binary = false
+reverse_order = true
+
+[[partition]]
+start_index = 2000
+number_of_entries = 3000
+K = 10
+L = 20
+seed = 1
+alpha = 1
+beta = 1
+payload = 0
+window_size = 5
+output_file = "../workloads/createdata2.txt"
+is_fixed = true
+is_binary = false
+reverse_order = false
+
+[[partition]]
+start_index = 5000
+number_of_entries = 5000
+K = 50
+L = 10
+seed = 1
+alpha = 1
+beta = 1
+payload = 0
+window_size = 10
+output_file = "../workloads/createdata3.txt"
+is_fixed = false
+is_binary = false
+reverse_order = false
