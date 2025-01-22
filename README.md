@@ -19,19 +19,28 @@ a generalized beta distribution with fixed bounds (supported by the Boost librar
 ## How to run
 
 ### To run Data generator
-1. Create the workloads directory using 
+1. Create the `workloads` directory using 
    ```shell
    mkdir workloads/
    ```
-3. Compile using the `make` command
-4. Run the workload generator using the following format:
+2. Create `build` directory and switch directories
+    ```shell
+    mkdir build/
+    cd build/
+    ```
+3. Compile using `CMAKE`
+    ```shell
+    cmake ..
+    make
+    ```
+3. Run the workload generator using the following format:
    ```shell
-   ./sortedness_data_generator -N <entries to generate> -K <K%> -L <L%> -S <seed> -o <output_file> -a <alpha> -b <beta> -P <payload_size_in_bytes>
+   ./sortedness_data_generator -N <entries to generate> -K <K%> -L <L%> -S <seed> -O <output_file> -a <alpha> -b <beta> -P <payload_size_in_bytes>
    ```
 
 For example, a sample ingestion workload to create 1M entries with K=L=10 (10% of 1M entries) will look like:
 ```shell
-./sortedness_data_generator -N 1000000 -K 10 -L 10 -S 1 -o ./workloads/createdata_N1000000_K10_L10_S1234_a1_b1_P4.txt -a 2.5 -b 2.9 -P 252
+./sortedness_data_generator -N 1000000 -K 10 -L 10 -S 1 -O ./workloads/createdata_N1000000_K10_L10_S1234_a1_b1_P4.txt -a 2.5 -b 2.9 -P 252
 ```
 Here, we used "1234" as a seed value, and alpha=1 while beta=1 for the sortedness distribution.  We place this created workload in the "workloads/" directory, and use a payload size of 252 Bytes. Note, the data generator requires the name of the output file as input. By default, the benchmark 
 uses the following format for nomenclature: 
