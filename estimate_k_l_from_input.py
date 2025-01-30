@@ -1,5 +1,17 @@
 import numpy as np
-f = open('workloads/createdata_N100_D1000_K5_L5_S1_a1_b1_P0_W5.txt', 'r')
+import argparse
+import os
+
+parser = argparse.ArgumentParser(description='This script takes in the workload, and returns the workload description.')
+parser.add_argument('-f', '--file_name', help='The relative path for the workload file')
+
+args = parser.parse_args()
+try:
+    f = open(args.argument, 'r')
+except:
+    print('The argument provided was invalid.')
+    os.system('python3 estimate_k_l_from_input.py --help')
+    exit()
 
 vals = []
 N = 0
