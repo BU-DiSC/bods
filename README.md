@@ -19,17 +19,25 @@ a generalized beta distribution with fixed bounds (supported by the Boost librar
 ## How to run
 
 ### To run Data generator
-1. Create the workloads directory using 
+1. Create the `workloads` directory using 
    ```shell
    mkdir workloads/
    ```
-3. Compile using the `make` command
+2. Create `build` directory and switch directories
+    ```shell
+    mkdir build/
+    cd build/
+    ```
+3. Compile using `CMAKE`
+    ```shell
+    cmake ..
+    make
+    ```
 4. Input workload description through args.toml
 5. Run the workload generator using the following format:
    ```shell
    ./sortedness_data_generator -P <total partitions> -F <relative workload description path>
    ```
-
 For example, a sample ingestion workload to create 1M entries with K=L=10 (10% of 1M entries) will look like:
 ```shell
 ./sortedness_data_generator -F ../src/args.toml
