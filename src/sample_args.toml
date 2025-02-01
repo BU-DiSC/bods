@@ -1,7 +1,6 @@
-title = "Multiple Datastream Arguments"
+title = "Multiple Workload Descriptions"
 
 [global]
-partitions = 3
 domain = 50000
 
 [[partition]]
@@ -29,7 +28,7 @@ alpha = 1
 beta = 1
 payload = 0
 window_size = 5
-output_file = "../workloads/createdata2.txt"
+output_file = "../workloads/createdata1.txt"
 is_fixed = true
 is_binary = false
 reverse_order = false
@@ -44,7 +43,7 @@ alpha = 1
 beta = 1
 payload = 0
 window_size = 10
-output_file = "../workloads/createdata3.txt"
+output_file = "../workloads/createdata1.txt"
 is_fixed = false
 is_binary = false
 reverse_order = false

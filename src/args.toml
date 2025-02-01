@@ -1,20 +1,19 @@
-title = "Multiple Datastream Arguments"
+title = "Single Workload Description"
 
 [global]
-partitions = 1
-domain = 50000
+domain = 10000000
 
 [[partition]]
 start_index = 0
-number_of_entries = 1000
+number_of_entries = 1000000
 K = 10
 L = 10
-seed = 1
+seed = 1234
 alpha = 1
 beta = 1
-payload = 0
+payload = 252
 window_size = 1
-output_file = "../workloads/createdata1.txt"
+output_file = "../workloads/createdata_N1000000_K10_L10_S1234_a1_b1_P252.txt"
 is_fixed = false
 is_binary = false
 reverse_order = true

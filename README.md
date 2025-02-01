@@ -24,14 +24,15 @@ a generalized beta distribution with fixed bounds (supported by the Boost librar
    mkdir workloads/
    ```
 3. Compile using the `make` command
-4. Run the workload generator using the following format:
+4. Input workload description through args.toml
+5. Run the workload generator using the following format:
    ```shell
-   ./sortedness_data_generator -N <entries to generate> -K <K%> -L <L%> -S <seed> -o <output_file> -a <alpha> -b <beta> -P <payload_size_in_bytes>
+   ./sortedness_data_generator -P <total partitions> -F <relative workload description path>
    ```
 
 For example, a sample ingestion workload to create 1M entries with K=L=10 (10% of 1M entries) will look like:
 ```shell
-./sortedness_data_generator -N 1000000 -K 10 -L 10 -S 1 -o ./workloads/createdata_N1000000_K10_L10_S1234_a1_b1_P4.txt -a 2.5 -b 2.9 -P 252
+./sortedness_data_generator -F ../src/args.toml
 ```
 Here, we used "1234" as a seed value, and alpha=1 while beta=1 for the sortedness distribution.  We place this created workload in the "workloads/" directory, and use a payload size of 252 Bytes. Note, the data generator requires the name of the output file as input. By default, the benchmark 
 uses the following format for nomenclature: 
@@ -39,11 +40,94 @@ uses the following format for nomenclature:
 createdata_N<num_entries>_K<k%>_L<l%>_S<seed_val>_a<alpha_val>_b<beta_val>_P<payload_size>.txt
 ```
 
+The following workload description is used to input the previous values.
+
+```toml
+title = "Single Workload Description"
+
+[global]
+domain = 10000000
+
+[[partition]]
+start_index = 0
+number_of_entries = 1000000
+K = 10
+L = 10
+seed = 1234
+alpha = 1
+beta = 1
+payload = 252
+window_size = 1
+output_file = "../workloads/createdata_N1000000_K10_L10_S1234_a1_b1_P252.txt"
+is_fixed = false
+is_binary = false
+reverse_order = true
+
+```
+
 This will by default generate a comma separated txt file with the key in the first column and a randomly generated payload (string) in the second column.
+
+To run the data generator with mutiple workload descriptions, follow the format shown below in the sample completed workload description:
+```toml
+title = "Multiple Workload Descriptions"
+
+[global]
+domain = 50000
+
+[[partition]]
+start_index = 0
+number_of_entries = 2000
+K = 10
+L = 10
+seed = 1
+alpha = 1
+beta = 1
+payload = 0
+window_size = 1
+output_file = "../workloads/createdata.txt"
+is_fixed = false
+is_binary = false
+reverse_order = true
+
+[[partition]]
+start_index = 2000
+number_of_entries = 3000
+K = 10
+L = 20
+seed = 1
+alpha = 1
+beta = 1
+payload = 0
+window_size = 5
+output_file = "../workloads/createdata.txt"
+is_fixed = true
+is_binary = false
+reverse_order = false
+
+[[partition]]
+start_index = 5000
+number_of_entries = 5000
+K = 50
+L = 10
+seed = 1
+alpha = 1
+beta = 1
+payload = 0
+window_size = 10
+output_file = "../workloads/createdata.txt"
+is_fixed = false
+is_binary = false
+reverse_order = false
+```
+
+To run with these multiple partions, use the following script:
+```shell
+./sortedness_data_generator -P 3 -F ../src/args.toml
+```
 
 ### To run the BoDS Benchmark
 One can use the runloads.sh script as a controller to run the benchmark. This script calls the benchmarking script for a specific set of input values. 
 To run the benchmark with multiple data collections or workload inputs, the benchmarking script (benchmark.sh) can be called repeatedly through 
-the runloads.sh controller. 
+the runloads.sh controller.
 Note: both runloads.sh or benchmark.sh do not require the data collection to be created apriori, and can create the data file themselves. However, if 
 a data file pre-exists, a new file is not created and the pre-existing file is used.

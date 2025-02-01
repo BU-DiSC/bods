@@ -12,8 +12,6 @@
 #include <unordered_set>
 #include <vector>
 #include "toml.hpp"
-using namespace toml;
-using namespace boost::math;
 
 
 struct BoDSConfig {
@@ -40,7 +38,7 @@ std::vector<BoDSConfig> parse_args(int argc, char *argv[]) {
     try {
         options.add_options()("P,partitions",
                               "Number of partitions",
-                              cxxopts::value<int>())(
+                              cxxopts::value<int>()->default_value("1"))(
                                 "F, toml_file", "Toml File Name", cxxopts::value<std::string>());
         auto result = options.parse(argc, argv);
         tbl = toml::parse_file(result["toml_file"].as<std::string>());
@@ -106,7 +104,7 @@ int generate_beta_random_in_range(long position,
     // first pick a number uniformly at random between 0 and 1
     double rand_from_unif = ((double)rand() / (RAND_MAX));
 
-    beta_distribution<> dist(alpha, beta);
+    boost::math::beta_distribution<> dist(alpha, beta);
     // get a number between 0 and 1 according to beta distribution by using
     // inverse transform sampling
     double rand_from_dist = quantile(dist, rand_from_unif);
@@ -259,7 +257,7 @@ void generate_data(int total_numbers, int start_index,
         if (fixed_window) {
             array[i] = prev_value + window_size;
         } else {
-            beta_distribution<> dist(alpha, beta);
+            boost::math::beta_distribution<> dist(alpha, beta);
             double rand_from_unif = ((double)rand() / (RAND_MAX));
             double rand_from_dist = quantile(dist, rand_from_unif);
             array[i] = prev_value + (rand_from_dist * window_size) + 1;
@@ -589,7 +587,7 @@ int main(int argc, char **argv) {
     try {
         options.add_options()("P,partitions",
                               "Number of partitions",
-                              cxxopts::value<int>())(
+                              cxxopts::value<int>()->default_value("1"))(
                                 "F, toml_file", "Toml File Name", cxxopts::value<std::string>());
         auto result = options.parse(argc, argv);
         partitions = result["partitions"].as<int>();
