@@ -11,100 +11,74 @@
 #include <string>
 #include <unordered_set>
 #include <vector>
+#include "toml.hpp"
 
-using namespace boost::math;
 
 struct BoDSConfig {
-    unsigned long totalNumbers;
+    int total_numbers;
     double K;
     double L;
-    int seedValue;
-    std::string outputFile;
+    int seed_value;
+    std::string output_file;
     double alpha;
     double beta;
-    unsigned long domain_right;
+    int domain_right;
     int window_size;
     int payload_size;
     bool fixed_window;
-    unsigned long start_index;
+    int start_index;
     bool binary;
+    bool reversed;
 };
 
-BoDSConfig parse_args(int argc, char *argv[]) {
-    BoDSConfig config;
+std::vector<BoDSConfig> parse_args(int argc, char *argv[]) {
+    toml::table tbl;
+    int partitions;
     cxxopts::Options options("bods", "BoDS: Benchmark on Data Sortedness");
     try {
-        options.add_options()("N,total_entries",
-                              "Total number of entries to generate",
-                              cxxopts::value<unsigned long>())(
-            "O,output_file", "Output file", cxxopts::value<std::string>())(
-            "D,domain", "Domain size (end from 0) (default: =total_entries)",
-            cxxopts::value<unsigned long>())(
-            "K,k_pt", "% of out of order entries",
-            cxxopts::value<double>()->default_value("0"))(
-            "L,l_pt", "Maximum displacement of entries as %",
-            cxxopts::value<double>()->default_value("0"))(
-            "S,seed", "Seed Value", cxxopts::value<int>()->default_value("0"))(
-            "a,alpha", "Alpha Value",
-            cxxopts::value<double>()->default_value("0"))(
-            "b,beta", "Beta Value",
-            cxxopts::value<double>()->default_value("0"))(
-            "W,window", "Window size",
-            cxxopts::value<int>()->default_value("1"))(
-            "F,fixed", "Fixed window size",
-            cxxopts::value<bool>()->default_value("false"))(
-            "B,binary", "File output binary format",
-            cxxopts::value<bool>()->default_value("false"))(
-            "P,payload", "Payload Size in Bytes",
-            cxxopts::value<int>()->default_value("0"))(
-            "I,start", "Start Index",
-            cxxopts::value<unsigned long>()->default_value("0"));
+        options.add_options()("P,partitions",
+                              "Number of partitions",
+                              cxxopts::value<int>()->default_value("1"))(
+                                "F, toml_file", "Toml File Name", cxxopts::value<std::string>());
         auto result = options.parse(argc, argv);
-        if (result.count("help")) {
-            std::cout << options.help() << std::endl;
-            exit(0);
-        }
-        if ((result.count("total_entries") == 0) ||
-            (result.count("output_file") == 0)) {
-            std::cerr << "Missing required arguments" << std::endl;
-            std::cerr << options.help() << std::endl;
-            exit(1);
-        }
-        config.totalNumbers = result["total_entries"].as<unsigned long>();
-        if (result.count("domain") == 0) {
-            config.domain_right = config.totalNumbers;
-        } else {
-            config.domain_right = result["domain"].as<unsigned long>();
-        }
-        config.K = result["k_pt"].as<double>();
-        config.L = result["l_pt"].as<double>();
-        config.seedValue = result["seed"].as<int>();
-        config.outputFile = result["output_file"].as<std::string>();
-        config.alpha = result["alpha"].as<double>();
-        config.beta = result["beta"].as<double>();
-        config.window_size = result["window"].as<int>();
-        config.payload_size = result["payload"].as<int>();
-        config.fixed_window = result["fixed"].as<bool>();
-        config.binary = result["binary"].as<bool>();
-        config.start_index = result["start"].as<unsigned long>();
+        tbl = toml::parse_file(result["toml_file"].as<std::string>());
+        partitions = result["partitions"].as<int>();
     } catch (const std::exception &e) {
         std::cerr << "Error parsing options: " << e.what() << std::endl;
         std::cerr << options.help() << std::endl;
         exit(EXIT_FAILURE);
     }
-
-    if (config.binary && config.payload_size > 0) {
+    std::vector<BoDSConfig> configs;
+    BoDSConfig config;
+    for(int i = 0; i < partitions; i++) {
+        config.total_numbers = tbl["partition"][i]["number_of_entries"].value_or(10000);
+        config.domain_right = tbl["global"]["domain"].value_or(30000);
+        config.K = tbl["partition"][i]["K"].value_or(0);
+        config.L = tbl["partition"][i]["L"].value_or(0);
+        config.seed_value = tbl["partition"][i]["seed"].value_or(0);
+        config.output_file = tbl["partition"][i]["output_file"].value_or("/workloads/createdata_partitions_3");
+        config.alpha = tbl["partition"][i]["alpha"].value_or(0);
+        config.beta = tbl["partition"][i]["beta"].value_or(0);
+        config.window_size = tbl["partition"][i]["window_size"].value_or(1);
+        config.payload_size = tbl["partition"][i]["payload"].value_or(0);
+        config.fixed_window = tbl["partition"][i]["is_fixed"].value_or(false);
+        config.binary = tbl["partition"][i]["is_binary"].value_or(false);
+        config.reversed = tbl["partition"][i]["reverse_order"].value_or(false);
+        config.start_index = tbl["partition"][i]["start_index"].value_or(0);
+        if (config.binary && config.payload_size > 0) {
         std::cerr << "Not implemented: binary output cannot accompany "
                      "payload_size > 0"
                   << std::endl;
-        std::cerr << options.help() << std::endl;
         exit(EXIT_FAILURE);
+        }
+        configs.push_back(config);
     }
-    return config;
+        
+    return configs;
 }
 
-unsigned long generate_beta_random_in_range(long position,
-                                            unsigned long Total_Numbers, int L,
+int generate_beta_random_in_range(long position,
+                                            int total_numbers, int L,
                                             double alpha, double beta) {
     // configure jump ranges. Note: Both are inclusive
     long low_jump = -L;
@@ -112,10 +86,10 @@ unsigned long generate_beta_random_in_range(long position,
 
     // now, lets do some basic bound checks for the jumps
 
-    if (position + high_jump >= Total_Numbers) {
-        // max_pos can be (Total_Numbers - 1)
+    if (position + high_jump >= total_numbers) {
+        // max_pos can be (total_numbers - 1)
         // high jump should be (max_pos - curr_pos)
-        high_jump = (Total_Numbers - 1) - position;
+        high_jump = (total_numbers - 1) - position;
     }
 
     if (position + low_jump < 0) {
@@ -128,33 +102,33 @@ unsigned long generate_beta_random_in_range(long position,
     // ------------------------------------------- //
 
     // first pick a number uniformly at random between 0 and 1
-    double randFromUnif = ((double)rand() / (RAND_MAX));
+    double rand_from_unif = ((double)rand() / (RAND_MAX));
 
-    beta_distribution<> dist(alpha, beta);
+    boost::math::beta_distribution<> dist(alpha, beta);
     // get a number between 0 and 1 according to beta distribution by using
     // inverse transform sampling
-    double randFromDist = quantile(dist, randFromUnif);
+    double rand_from_dist = quantile(dist, rand_from_unif);
 
     // now, we transform this to the range of low_jump to high_jump
-    long jump = low_jump + ((high_jump - low_jump) * randFromDist);
+    long jump = low_jump + ((high_jump - low_jump) * rand_from_dist);
 
     // we want to return the swap position
     long ret = position + jump;
 
     // sanity check
-    // assert(ret >= 0 && ret < Total_Numbers);
+    // assert(ret >= 0 && ret < total_numbers);
     if (ret < 0) {
         spdlog::error("ret = {}", ret);
         spdlog::error("position = {}\tlow = {}\thigh = {}\trand = {}", position,
-                      low_jump, high_jump, randFromDist);
+                      low_jump, high_jump, rand_from_dist);
         spdlog::error("position + low_jump = {}", (position + low_jump));
 
         exit(0);
-    } else if (ret >= Total_Numbers) {
+    } else if (ret >= total_numbers) {
         spdlog::error("ret is more than total_numbers = {}", ret);
         exit(0);
     }
-    assert(ret >= 0 && ret < Total_Numbers);
+    assert(ret >= 0 && ret < total_numbers);
     return ret;
 }
 
@@ -190,8 +164,8 @@ double findMedian(std::vector<long> a, int n) {
     }
 }
 
-std::vector<unsigned long> unique_randoms(unsigned long n, unsigned long t) {
-    std::vector<unsigned long> arr(n);
+std::vector<int> unique_randoms(int n, int t) {
+    std::vector<int> arr(n);
     // Fill the vector with numbers from 1 to n
     std::iota(arr.begin(), arr.end(), 1);
 
@@ -208,69 +182,85 @@ std::vector<unsigned long> unique_randoms(unsigned long n, unsigned long t) {
     return arr;
 }
 
-void write_data_to_file(unsigned long data_len, int payload_size,
-                        std::string &file_name, unsigned long *data,
-                        bool binary = false) {
+void write_data_to_file(int data_len, int payload_size,
+                        std::string &file_name, int *data,
+                        bool is_reversed, bool binary = false) {
     if (binary) {
         std::ofstream out_file(file_name, std::ios::out | std::ios::binary);
         out_file.write(reinterpret_cast<const char *>(data),
-                       sizeof(unsigned long) * data_len);
+                       sizeof(int) * data_len);
         out_file.close();
 
         return;
     }
     // Otherwise default to text output
-    std::ofstream myfile1(file_name);
-    for (unsigned long idx = 0; idx < data_len; idx++) {
-        if (payload_size == 0) {
-            myfile1 << data[idx] << std::endl;
-        } else
-            myfile1 << data[idx] << ","
-                    << std::string(payload_size, 'a' + (rand() % 26))
-                    << std::endl;
+    std::ofstream myfile1;
+    myfile1.open(file_name, std::ios::app);
+    if(is_reversed) {
+        for (int idx = data_len - 1; idx >= 0; idx--) {
+            if (payload_size == 0) {
+                myfile1 << data[idx] << std::endl;
+            } else
+                myfile1 << data[idx] << ","
+                        << std::string(payload_size, 'a' + (rand() % 26))
+                        << std::endl;
+        }
+    }
+    else {
+        for (int idx = 0; idx < data_len; idx++) {
+            if (payload_size == 0) {
+                myfile1 << data[idx] << std::endl;
+            } else
+                myfile1 << data[idx] << ","
+                        << std::string(payload_size, 'a' + (rand() % 26))
+                        << std::endl;
+        }
     }
     myfile1.close();
 }
 
-void generate_data(unsigned long TOTAL_NUMBERS, unsigned long start_index,
-                   unsigned long domain_right, int window_size,
+void generate_data(int total_numbers, int start_index,
+                   int domain_right, int window_size,
                    bool fixed_window, double k, double L, int seed,
-                   std::string &outputFile, double alpha = 1.0,
+                   std::string &output_file, double alpha = 1.0,
                    double beta = 1.0, int payload_size = 252,
-                   bool binary = false) {
+                   bool binary = false, bool reversed = false) {
     std::srand(seed);
     // fix K for new definition
     double K = k / 2.0;
 
     double p_outOfRange = K;
 
-    unsigned long *array = new unsigned long[TOTAL_NUMBERS];
+    int *array = new int[total_numbers];
 
-    unsigned long desired_num_sources = TOTAL_NUMBERS * p_outOfRange / 100.0;
-    unsigned long l_absolute = TOTAL_NUMBERS * L / 100.0;
+    int desired_num_sources = total_numbers * p_outOfRange / 100.0;
+    int l_absolute = total_numbers * L / 100.0;
 
-    unsigned long noise_counter = 0;
+    int noise_counter = 0;
 
-    std::unordered_set<unsigned long> swaps;
-    std::unordered_set<unsigned long> left_out_sources;
-    unsigned long w = 0;
+    std::unordered_set<int> swaps;
+    std::unordered_set<int> left_out_sources;
+    int w = 0;
 
     spdlog::info("start index = {}", start_index);
     spdlog::info("max displacement (L) = {}", l_absolute);
     spdlog::info("# required swaps = {}", desired_num_sources);
 
-    unsigned long min_l = l_absolute, max_l = 0;
+    int min_l = l_absolute, max_l = 0;
 
     std::vector<long> l_values;
 
-    unsigned long prev_value = start_index;
-    for (unsigned long i = 0; i < TOTAL_NUMBERS; i++) {
+    int prev_value = start_index;
+    for (int i = 0; i < total_numbers; i++) {
         // generate random number between 1 and window_size and add it to
         // prev_value
         if (fixed_window) {
             array[i] = prev_value + window_size;
         } else {
-            array[i] = prev_value + (rand() % window_size) + 1;
+            boost::math::beta_distribution<> dist(alpha, beta);
+            double rand_from_unif = ((double)rand() / (RAND_MAX));
+            double rand_from_dist = quantile(dist, rand_from_unif);
+            array[i] = prev_value + (rand_from_dist * window_size) + 1;
         }
         prev_value = array[i];
     }
@@ -281,24 +271,24 @@ void generate_data(unsigned long TOTAL_NUMBERS, unsigned long start_index,
 
     // generate desired_num_sources number of unique random numbers that are
     // source indexes in original array for swaps
-    std::vector<unsigned long> v =
-        unique_randoms(TOTAL_NUMBERS, desired_num_sources);
-    std::unordered_set<unsigned long> source_set(v.begin(), v.end());
+    std::vector<int> v =
+        unique_randoms(total_numbers, desired_num_sources);
+    std::unordered_set<int> source_set(v.begin(), v.end());
     spdlog::info("Generated # sources = {}", source_set.size());
 
     // We first ensure that the max displacement is L for at least one swap.
-    unsigned long generated_source;
+    int generated_source;
     int num_tries_for_max_displacement = 10;
     int tries_ctr = 0;
     bool generated_with_max_displacement = false;
-    for (unsigned long i : source_set) {
+    for (int i : source_set) {
         if (tries_ctr > num_tries_for_max_displacement) {
             break;
         }
 
-        unsigned long r = i + l_absolute;
+        int r = i + l_absolute;
 
-        if (r > TOTAL_NUMBERS) {
+        if (r > total_numbers) {
             r = i - l_absolute;
 
             // check if this becomes a problem on the other side
@@ -326,7 +316,7 @@ void generate_data(unsigned long TOTAL_NUMBERS, unsigned long start_index,
         else if (abs(int(r - i)) > max_l)
             max_l = abs(int(r - i));
 
-        unsigned long temp = array[i];
+        int temp = array[i];
         array[i] = array[r];
         array[r] = temp;
 
@@ -344,14 +334,14 @@ void generate_data(unsigned long TOTAL_NUMBERS, unsigned long start_index,
         spdlog::info("Displaced at least one entry by {} positions...",
                      l_absolute);
 
-    for (unsigned long i : source_set) {
+    for (int i : source_set) {
         // check if this position is already the first generated source
         if (generated_source == i) continue;
 
         int num_tries = 128;
         while (num_tries > 0) {
-            unsigned long r = generate_beta_random_in_range(
-                i, TOTAL_NUMBERS, l_absolute, alpha, beta);
+            int r = generate_beta_random_in_range(
+                i, total_numbers, l_absolute, alpha, beta);
             num_tries--;
 
             // check for cascading swaps, i.e. we should not pick a spot again
@@ -376,7 +366,7 @@ void generate_data(unsigned long TOTAL_NUMBERS, unsigned long start_index,
                 else if (abs(int(r - i)) > max_l)
                     max_l = abs(int(r - i));
 
-                unsigned long temp = array[i];
+                int temp = array[i];
                 array[i] = array[r];
                 array[r] = temp;
 
@@ -396,14 +386,14 @@ void generate_data(unsigned long TOTAL_NUMBERS, unsigned long start_index,
     // we potentially have left out sources
     // loop through them again and try another set of random jumps
     for (auto it = left_out_sources.begin(); it != left_out_sources.end();) {
-        unsigned long r;
-        unsigned long i = *it;
+        int r;
+        int i = *it;
 
         int num_tries = 512;
         bool found = false;
         while (num_tries > 0) {
-            // r = generate_random_in_range(i, TOTAL_NUMBERS, l_absolute);
-            r = generate_beta_random_in_range(i, TOTAL_NUMBERS, l_absolute,
+            // r = generate_random_in_range(i, total_numbers, l_absolute);
+            r = generate_beta_random_in_range(i, total_numbers, l_absolute,
                                               alpha, beta);
             num_tries--;
             // check for cascading swaps, i.e. we should not pick a spot again
@@ -425,7 +415,7 @@ void generate_data(unsigned long TOTAL_NUMBERS, unsigned long start_index,
                 else if (abs(int(r - i)) > max_l)
                     max_l = abs(int(r - i));
 
-                unsigned long temp = array[i];
+                int temp = array[i];
                 array[i] = array[r];
                 array[r] = temp;
 
@@ -465,11 +455,9 @@ void generate_data(unsigned long TOTAL_NUMBERS, unsigned long start_index,
 
         for (auto iter = left_out_sources.begin();
              iter != left_out_sources.end();) {
-            unsigned long position = *iter;
-            // unsigned long start = position - l_absolute;
-            // unsigned long end = position + l_absolute;
-            unsigned long start;
-            unsigned long end;
+            int position = *iter;
+            int start;
+            int end;
 
             bool found = false;
 
@@ -490,8 +478,8 @@ void generate_data(unsigned long TOTAL_NUMBERS, unsigned long start_index,
                     start = position - l_absolute;
                 }
 
-                if (long(position + l_absolute) > TOTAL_NUMBERS) {
-                    end = TOTAL_NUMBERS - 1;
+                if (long(position + l_absolute) > total_numbers) {
+                    end = total_numbers - 1;
                 } else {
                     end = position + l_absolute;
                 }
@@ -504,8 +492,8 @@ void generate_data(unsigned long TOTAL_NUMBERS, unsigned long start_index,
                     end = position - l_absolute;
                 }
 
-                if (long(position + l_absolute) > TOTAL_NUMBERS) {
-                    start = TOTAL_NUMBERS - 1;
+                if (long(position + l_absolute) > total_numbers) {
+                    start = total_numbers - 1;
                 } else {
                     start = position + l_absolute;
                 }
@@ -515,7 +503,7 @@ void generate_data(unsigned long TOTAL_NUMBERS, unsigned long start_index,
 
             // now, loop through from start to end
             // we will pick the first valid swap spot
-            for (unsigned long r = start; r != end;) {
+            for (int r = start; r != end;) {
                 // if (r == position || swaps.find(r) != swaps.end() ||
                 // source_set.find(r)
                 // != source_set.end())
@@ -539,7 +527,7 @@ void generate_data(unsigned long TOTAL_NUMBERS, unsigned long start_index,
                     else if (abs(int(r - position)) > max_l)
                         max_l = abs(int(r - position));
 
-                    unsigned long temp = array[position];
+                    int temp = array[position];
                     array[position] = array[r];
                     array[r] = temp;
 
@@ -583,28 +571,39 @@ void generate_data(unsigned long TOTAL_NUMBERS, unsigned long start_index,
 
     double median_l = findMedian(l_values, l_values.size());
     spdlog::info("Median L = {}", median_l);
-
-    write_data_to_file(TOTAL_NUMBERS, payload_size, outputFile, array, binary);
+    write_data_to_file(total_numbers, payload_size, output_file, array, reversed, binary);
 }
 
 void generate_one_file(BoDSConfig config) {
-    generate_data(config.totalNumbers, config.start_index, config.domain_right,
+    generate_data(config.total_numbers, config.start_index, config.domain_right,
                   config.window_size, config.fixed_window, config.K, config.L,
-                  config.seedValue, config.outputFile, config.alpha,
-                  config.beta, config.payload_size, config.binary);
+                  config.seed_value, config.output_file, config.alpha,
+                  config.beta, config.payload_size, config.binary, config.reversed);
 }
 
-// arguments to program:
-// unsigned long pTOTAL_NUMBERS, unsigned int pdomain, unsigned long
-// windowSize, short k, int pseed,
-
 int main(int argc, char **argv) {
-    auto config = parse_args(argc, argv);
-    if ((config.window_size * config.totalNumbers) > config.domain_right) {
-        std::cerr << "Window size too large for domain and total entries"
-                  << std::endl;
-        return 1;
+    int partitions;
+    cxxopts::Options options("bods", "BoDS: Benchmark on Data Sortedness");
+    try {
+        options.add_options()("P,partitions",
+                              "Number of partitions",
+                              cxxopts::value<int>()->default_value("1"))(
+                                "F, toml_file", "Toml File Name", cxxopts::value<std::string>());
+        auto result = options.parse(argc, argv);
+        partitions = result["partitions"].as<int>();
+    } catch (const std::exception &e) {
+        std::cerr << "Error parsing options: " << e.what() << std::endl;
+        std::cerr << options.help() << std::endl;
+        exit(EXIT_FAILURE);
     }
-    generate_one_file(config);
+    auto configs = parse_args(argc, argv);
+    for(int i = 0; i < partitions; i++) {
+        if ((configs[i].window_size * configs[i].total_numbers) > configs[i].domain_right) {
+            std::cerr << "Window size too large for domain and total entries"
+                  << std::endl;
+            return 1;
+        }
+        generate_one_file(configs[i]);
+    }
     return 0;
 }
