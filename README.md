@@ -140,7 +140,7 @@ the runloads.sh controller.
 Note: both runloads.sh or benchmark.sh do not require the data collection to be created apriori, and can create the data file themselves. However, if 
 a data file pre-exists, a new file is not created and the pre-existing file is used.
 
-### Calculating various sortedness metrics 
+## Calculating various sortedness metrics 
 
 **Analyze Runs Script**
 
@@ -152,7 +152,7 @@ a data file pre-exists, a new file is not created and the pre-existing file is u
 - **Usage**:
 
 ```bash
-python3 analyze_runs_from_input.py -f workloads/createdata_N1000_K10_L10_S1234_a1_b1_P252.txt
+python3 analyze_runs_from_input.py -f workloads/<relative workload description path>
 ```
 
 - **Options**:
@@ -171,7 +171,7 @@ See `README_analyze_runs.md` for more notes and examples.
 - **Usage**:
 
 ```bash
-python3 estimate_k_l_from_input.py -f workloads/yourfile.txt
+python3 estimate_k_l_from_input.py -f <relative workload description path>
 ```
 
 Both utilities are small analysis helpers intended for quick inspection of generated workloads in the `workloads/` directory. If you'd like, I can add JSON output flags or limit the size of printed distributions.
