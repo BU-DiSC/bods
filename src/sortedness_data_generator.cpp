@@ -1,5 +1,4 @@
 #include <spdlog/spdlog.h>
-
 #include <algorithm>
 #include <boost/math/distributions.hpp>
 #include <cassert>
@@ -12,6 +11,7 @@
 #include <unordered_set>
 #include <vector>
 #include "toml.hpp"
+#include <sstream>
 
 
 struct BoDSConfig {
@@ -29,6 +29,7 @@ struct BoDSConfig {
     int start_index;
     bool binary;
     bool reversed;
+    bool auto_output_filename;
 };
 
 std::vector<BoDSConfig> parse_args(int argc, char *argv[]) {
@@ -50,13 +51,17 @@ std::vector<BoDSConfig> parse_args(int argc, char *argv[]) {
     }
     std::vector<BoDSConfig> configs;
     BoDSConfig config;
+    // read global output_dir (used when auto-generating filenames)
+    std::string global_output_dir = tbl["global"]["output_dir"].value_or(std::string("../workloads"));
+
     for(int i = 0; i < partitions; i++) {
         config.total_numbers = tbl["partition"][i]["number_of_entries"].value_or(10000);
         config.domain_right = tbl["global"]["domain"].value_or(30000);
         config.K = tbl["partition"][i]["K"].value_or(0);
         config.L = tbl["partition"][i]["L"].value_or(0);
         config.seed_value = tbl["partition"][i]["seed"].value_or(0);
-        config.output_file = tbl["partition"][i]["output_file"].value_or("/workloads/createdata_partitions_3");
+        config.output_file = tbl["partition"][i]["output_file"].value_or(std::string());
+        config.auto_output_filename = tbl["partition"][i]["auto_output_filename"].value_or(false);
         config.alpha = tbl["partition"][i]["alpha"].value_or(0);
         config.beta = tbl["partition"][i]["beta"].value_or(0);
         config.window_size = tbl["partition"][i]["window_size"].value_or(1);
@@ -65,6 +70,23 @@ std::vector<BoDSConfig> parse_args(int argc, char *argv[]) {
         config.binary = tbl["partition"][i]["is_binary"].value_or(false);
         config.reversed = tbl["partition"][i]["reverse_order"].value_or(false);
         config.start_index = tbl["partition"][i]["start_index"].value_or(0);
+        // If output_file is not provided or auto_output_filename is true,
+        // construct it from the parameters using the repository's naming
+        // convention:
+        // createdata_N<num>_K<k%>_L<l%>_S<seed>_a<alpha>_b<beta>_P<payload>.txt
+        if (config.output_file.empty() || config.auto_output_filename) {
+            std::ostringstream oss;
+            oss << "createdata_N" << config.total_numbers
+                << "_K" << static_cast<int>(config.K)
+                << "_L" << static_cast<int>(config.L)
+                << "_S" << config.seed_value
+                << "_a" << static_cast<int>(config.alpha)
+                << "_b" << static_cast<int>(config.beta)
+                << "_P" << config.payload_size << ".txt";
+            std::string out_dir = global_output_dir;
+            if (!out_dir.empty() && out_dir.back() != '/') out_dir.push_back('/');
+            config.output_file = out_dir + oss.str();
+        }
         if (config.binary && config.payload_size > 0) {
         std::cerr << "Not implemented: binary output cannot accompany "
                      "payload_size > 0"
@@ -565,6 +587,7 @@ void generate_data(int total_numbers, int start_index,
     }
 
     spdlog::info("************ Final Statistics:");
+    spdlog::info("Output file: {}", output_file);
     spdlog::info("Swaps made = {}", noise_counter);
     spdlog::info("Min L = {}", min_l);
     spdlog::info("Max L = {}", max_l);

@@ -3,17 +3,30 @@ title = "Single Workload Description"
 [global]
 domain = 10000000
 
+# Optional: directory where generated output files will be written when
+# `auto_output_filename` is enabled for a partition. Default: "../workloads".
+output_dir = "../workloads"
+
 [[partition]]
 start_index = 0
-number_of_entries = 1000000
-K = 10
-L = 10
+number_of_entries = 2000
+K = 41
+L = 1
 seed = 1234
 alpha = 1
 beta = 1
-payload = 252
+payload = 0
 window_size = 1
-output_file = "../workloads/createdata_N1000000_K10_L10_S1234_a1_b1_P252.txt"
 is_fixed = false
 is_binary = false
-reverse_order = true
+reverse_order = false
+
+# If true, the generator will ignore `output_file` and automatically
+# construct a filename using the convention:
+# createdata_N<num_entries>_K<k%>_L<l%>_S<seed>_a<alpha>_b<beta>_P<payload>.txt
+# and place it under `global.output_dir` above.
+auto_output_filename = true
+
+# You may optionally still provide an explicit `output_file` path. If
+# `auto_output_filename` is true the explicit value will be ignored.
+output_file = "../workloads/createdata_N2000_K40_L10_S1234_a1_b1_P252.txt"
