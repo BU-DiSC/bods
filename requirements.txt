@@ -1,0 +1,2 @@
+# Python requirements for scripts in this repository
+numpy>=1.21

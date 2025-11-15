@@ -160,14 +160,27 @@ a data file pre-exists, a new file is not created and the pre-existing file is u
 - **Usage**:
 
 ```bash
-python3 analyze_runs_from_input.py -f workloads/<relative workload description path>
+python3 analyze_runs_from_input.py -f workloads/<relative-workload-file>
 ```
 
 - **Options**:
-    - `-f, --file_name`: path to workload file (required)
+    - `-f, --file_name` (required): path to workload file (relative to repo root or absolute path)
     - `--allow-equal`: treat equal consecutive values as part of a run (non-decreasing runs)
+    - `--top-k N`: show only the top-N most frequent entries in the run-length and diff distributions (N=0 means show all)
 
-See `README_analyze_runs.md` for more notes and examples.
+- **Example**:
+
+```bash
+python3 analyze_runs_from_input.py -f workloads/createdata_N1000_K10_L10_S1234_a1_b1_P252.txt --top-k 10
+```
+
+- **Notes**:
+    - The script reports the number of lines containing more than one comma-separated value (these lines are truncated to the first value).
+    - If the input file contains invalid (non-integer) lines, they are skipped and counted in the summary.
+    - Use `--allow-equal` when you want non-decreasing runs rather than strictly increasing runs.
+
+See `README_analyze_runs.md` for additional examples and sample output.
+
 
 **Estimate K,L From Input**
 
