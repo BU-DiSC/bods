@@ -73,6 +73,14 @@ reverse_order = true
 
 ```
 
+Note: the TOML format supports two new optional fields to control where
+generated files are placed and whether filenames are auto-generated:
+
+- `global.output_dir` (string): directory to use when auto-generating output filenames. Default is `../workloads`.
+- `partition.auto_output_filename` (bool): when `true` the generator builds a filename using the pattern `createdata_N..._K..._L..._S..._a..._b..._P....txt` and writes it into `global.output_dir`. If `false`, the generator uses `partition.output_file`.
+
+See `src/args.toml` for an example that includes comments showing these options.
+
 This will by default generate a comma separated txt file with the key in the first column and a randomly generated payload (string) in the second column.
 
 To run the data generator with mutiple workload descriptions, follow the format shown below in the sample completed workload description:
