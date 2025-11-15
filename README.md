@@ -139,3 +139,39 @@ To run the benchmark with multiple data collections or workload inputs, the benc
 the runloads.sh controller.
 Note: both runloads.sh or benchmark.sh do not require the data collection to be created apriori, and can create the data file themselves. However, if 
 a data file pre-exists, a new file is not created and the pre-existing file is used.
+
+### Calculating various sortedness metrics 
+
+**Analyze Runs Script**
+
+- **File**: `analyze_runs_from_input.py`
+- **Purpose**: Read a workload file (one value per line). If a line contains multiple comma-separated values, the script keeps the first value and discards the rest of the line. The script reports:
+    - **Total runs**: number of monotonic runs (strictly increasing by default; use `--allow-equal` for non-decreasing runs).
+    - **Run length distribution**: counts of run lengths, and summary stats (min, max, mean, median).
+    - **Diff distribution**: distribution of differences between consecutive values, and summary stats (min, max, mean, median).
+- **Usage**:
+
+```bash
+python3 analyze_runs_from_input.py -f workloads/createdata_N1000_K10_L10_S1234_a1_b1_P252.txt
+```
+
+- **Options**:
+    - `-f, --file_name`: path to workload file (required)
+    - `--allow-equal`: treat equal consecutive values as part of a run (non-decreasing runs)
+
+See `README_analyze_runs.md` for more notes and examples.
+
+**Estimate K,L From Input**
+
+- **File**: `estimate_k_l_from_input.py`
+- **Purpose**: Read a file of integers (one per line) and print a compact workload description using the (K,L) metrics used by the benchmark.
+- **Behavior**:
+    - Parses newline-separated integers; raises an error if a line is non-integer or the file is empty.
+    - Computes and prints: number of values `N`, start index `I` (minimum value), `K` (number of misplaced entries), `L` (maximum displacement), plus whether the input has a fixed window and the maximum window size.
+- **Usage**:
+
+```bash
+python3 estimate_k_l_from_input.py -f workloads/yourfile.txt
+```
+
+Both utilities are small analysis helpers intended for quick inspection of generated workloads in the `workloads/` directory. If you'd like, I can add JSON output flags or limit the size of printed distributions.
